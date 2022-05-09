@@ -1,0 +1,9 @@
+**/*.log
+**/*.tar.*
+**/*.patch
+/lfs/*
+/bootstrap/
+/chroot/
+**/hello*
+**/gcc-11.2.0*
+/gcc-prefix/

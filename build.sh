@@ -3,19 +3,20 @@
 # Run the whole thing and copy the result out to $PWD/lfs.  Logs are available at $PWD/logs.
 
 DEST=chroot
+OCI=podman
 
 set -euo pipefail
-if [ "$( docker ps -a | grep -c lfs )" -gt 0 ]; then
-  docker rm lfs
+if [ "$( $OCI ps -a | grep -c lfs )" -gt 0 ]; then
+  $OCI rm lfs
 fi
 mkdir -p "$PWD"/logs
 if [ ! -d "$PWD"/lfs ]; then
   mkdir -p "$PWD"/lfs
 fi
-docker build -t lfs:11.1 .
-docker run -it --privileged -v "$PWD"/logs:/mnt/lfs/logs --name lfs lfs:11.1
+$OCI build -t lfs:11.1 .
+$OCI run -it --privileged -v "$PWD"/logs:/mnt/lfs/logs --name lfs lfs:11.1
 rm -rf ./lfs/*
-docker cp lfs:/mnt/lfs .
+$OCI cp lfs:/mnt/lfs .
 mv lfs $DEST
 
 # Perform further cleanup

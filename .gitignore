@@ -7,3 +7,4 @@
 **/hello*
 **/gcc-11.2.0*
 /gcc-prefix/
+**/.DS_Store

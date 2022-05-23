@@ -15,10 +15,7 @@ ENV CONFIG_SITE=$LFS/usr/share/config.site
 # Defines how toolchain is fetched
 # 0 use LFS wget file
 # 1 use binaries from toolchain folder
-ENV FETCH_TOOLCHAIN_MODE=0
-
-# Define whether existing chroot (through ch6) tarball is available
-ENV EXISTING_CROSS_TOOLCHAIN=0
+ENV FETCH_TOOLCHAIN_MODE=1
 
 # Set bash as default shell (2.2)
 WORKDIR /bin
@@ -86,7 +83,7 @@ RUN chown -v lfs $LFS/{usr{,/*},lib,lib64,var,etc,bin,sbin,tools,logs}
 # No password for sudo
 RUN echo "lfs ALL = NOPASSWD : ALL" > /etc/sudoers
 # Carry important env vars across sudo invocation
-RUN echo 'Defaults env_keep += "CONFIG_SITE LFS LC_ALL LFS_TGT PATH LOGDIR LOGFILE FETCH_TOOLCHAIN_MODE EXISTING_CROSS_TOOLCHAIN"' >> /etc/sudoers
+RUN echo 'Defaults env_keep += "CONFIG_SITE LFS LC_ALL LFS_TGT PATH LOGDIR LOGFILE FETCH_TOOLCHAIN_MODE"' >> /etc/sudoers
 
 # Run environment checks (2.2)
 RUN chmod +x $LFS/tools/*.sh       \

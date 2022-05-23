@@ -11,19 +11,7 @@ export -f log
 
 log "Starting build..."
 
-# Run preparation
-case "$EXISTING_CROSS_TOOLCHAIN" in
-  "0")
-    sh /tools/run-prepare.sh
-    ;;
-  "1")
-    log "Using existing cross toolchain!!"
-    ;;
-  *)
-    log "Unrecognized EXISTING_CROSS_TOOLCHAIN value!!!"
-    false
-    ;;
-esac
+sh /tools/run-prepare.sh
 
 log "Preparing to enter chroot..."
 exec sudo -E -u root /bin/sh - <<EOF

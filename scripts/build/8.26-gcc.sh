@@ -49,7 +49,8 @@ grep -B4 '^ /usr/include' dummy.log | tee -a "$BUILD_LOGFILE"
 # TODO - more tests!
 rm -v dummy.c a.out dummy.log | tee -a "$BUILD_LOGFILE"
 mkdir -pv /usr/share/gdb/auto-load/usr/lib | tee -a "$BUILD_LOGFILE"
-mv -v /usr/lib/*gdb.py /usr/share/gdb/auto-load/usr/lib | tee -a "$BUILD_LOGFILE"
+# NOTE - fails on aarch64, no matching source files?
+# mv -v /usr/lib/*gdb.py /usr/share/gdb/auto-load/usr/lib | tee -a "$BUILD_LOGFILE"
 popd
 popd
 rm -rf gcc-11.2.0

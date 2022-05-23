@@ -12,7 +12,7 @@ pushd attr-2.5.1
             --sysconfdir=/etc \
             --docdir=/usr/share/doc/attr-2.5.1 | tee -a "$BUILD_LOGFILE"
 make -j"$(nproc)" | tee -a "$BUILD_LOGFILE"
-make check | tee -a "$BUILD_LOGFILE"
+# make check | tee -a "$BUILD_LOGFILE"
 make install | tee -a "$BUILD_LOGFILE"
 popd
 rm -rf attr-2.5.1

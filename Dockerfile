@@ -9,7 +9,7 @@ ENV LFS=/mnt/lfs
 
 # LFS build parameters
 ENV LC_ALL=POSIX
-ENV LFS_TGT=x86_64-lfs-linux-gnu
+ENV LFS_TGT=aarch64-lfs-linux-gnu
 ENV PATH=/tools/bin:/bin:/usr/bin:/sbin:/usr/sbin
 ENV CONFIG_SITE=$LFS/usr/share/config.site
 # Defines how toolchain is fetched

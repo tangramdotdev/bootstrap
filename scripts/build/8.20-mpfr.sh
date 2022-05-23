@@ -13,7 +13,7 @@ pushd mpfr-4.1.0
             --docdir=/usr/share/doc/mpfr-4.1.0 | tee -a "$BUILD_LOGFILE"
 make -j"$(nproc)" | tee -a "$BUILD_LOGFILE"
 make html | tee -a "$BUILD_LOGFILE"
-make check | tee -a "$BUILD_LOGFILE"
+# make check | tee -a "$BUILD_LOGFILE"
 make install | tee -a "$BUILD_LOGFILE"
 make install-html | tee -a "$BUILD_LOGFILE"
 popd

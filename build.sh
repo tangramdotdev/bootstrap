@@ -14,7 +14,7 @@ if [ ! -d "$PWD"/lfs ]; then
   mkdir -p "$PWD"/lfs
 fi
 $OCI build -t lfs:11.1 .
-$OCI run -it --privileged -v "$PWD"/logs:/mnt/lfs/logs --name lfs lfs:11.1
+$OCI run -it --privileged --name lfs lfs:11.1
 rm -rf ./lfs/*
 $OCI cp lfs:/mnt/lfs .
 mv lfs $DEST

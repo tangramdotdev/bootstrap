@@ -4,15 +4,13 @@ This repository creates the bootstrap for the Tangram package manager using Linu
 
 ## Usage
 
-Requires root to run with podman. Run `sudo ./build.sh`. The output directory will be copied to `$PWD/lfs` upon completion. A build log will be created at `$PWD/logs/build-lfs.log`, along with a separate log file containing full build output for each step. This is volume mapped, so can be inspected while the script runs. This directory is cleared at the start of each run, so copy elsewhere if you'd like to preserve the contents.
+Requires root to run with podman. Run `./build.sh`. On Linux, you may need to use `sudo` to run Podman in privileged mode. On MacOS, your podman machine needs to be configured with root instead of the default rootless mode, but the script can be run without privelige escalation. The output directory will be copied to `$PWD/lfs` upon completion. A build log will be created at `$PWD/lfs/logs/build-lfs.log`, along with a separate log file containing full build output for each step.
 
 ### Source Downloads
 
-To prompt the build process to download the sources from the internet, edit line 22 of the Dockerfile to read `ENV FETCH_TOOLCHAIN_MODE=0`.
+To prompt the build process to download the sources from the internet, edit line 18 of the Dockerfile to read `ENV FETCH_TOOLCHAIN_MODE=0`.
 
-Otherwise, ask Ben for the link to the prepared tarball. Extract this to the `toolchain` directoy and leave the `FETCH_TOOLCHAIN_MODE` variable as `1`.
-
-Eventually, this will be hosted in a nice place, and a `2` mode will take care of that for you.
+Otherwise, download the [prepared tarball using this link](https://github.com/tangramdotdev/bootstrap/releases/download/v0.0.0/lfs-sources.tar.xz). Extract this to the `toolchain` directoy and leave the `FETCH_TOOLCHAIN_MODE` variable as `1`.
 
 ## Acknowledgements
 

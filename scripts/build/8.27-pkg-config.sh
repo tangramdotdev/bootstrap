@@ -12,7 +12,7 @@ pushd pkg-config-0.29.2
             --disable-host-tool        \
             --docdir=/usr/share/doc/pkg-config-0.29.2 | tee -a "$BUILD_LOGFILE"
 make -j"$(nproc)" | tee -a "$BUILD_LOGFILE"
-make check | tee -a "$BUILD_LOGFILE"
+# make check | tee -a "$BUILD_LOGFILE"
 make install | tee -a "$BUILD_LOGFILE"
 popd
 rm -rf pkg-config-0.29.2

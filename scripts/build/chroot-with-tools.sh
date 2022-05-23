@@ -31,9 +31,9 @@ sh /tools/8.11-readline.sh
 sh /tools/8.12-m4.sh
 sh /tools/8.13-bc.sh
 sh /tools/8.14-flex.sh
-sh /tools/8.15-tcl.sh
-sh /tools/8.16-expect.sh
-sh /tools/8.17-dejagnu.sh
+#sh /tools/8.15-tcl.sh
+#sh /tools/8.16-expect.sh
+#sh /tools/8.17-dejagnu.sh
 sh /tools/8.18-binutils.sh
 sh /tools/8.19-gmp.sh
 sh /tools/8.20-mpfr.sh

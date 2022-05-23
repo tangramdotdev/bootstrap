@@ -11,7 +11,7 @@ pushd elfutils-0.186
             --disable-debuginfod         \
             --enable-libdebuginfod=dummy | tee -a "$BUILD_LOGFILE"
 make -j"$(nproc)" | tee -a "$BUILD_LOGFILE"
-make check | tee -a "$BUILD_LOGFILE"
+# make check | tee -a "$BUILD_LOGFILE"
 make -C libelf install | tee -a "$BUILD_LOGFILE"
 install -vm644 config/libelf.pc /usr/lib/pkgconfig | tee -a "$BUILD_LOGFILE"
 rm /usr/lib/libelf.a | tee -a "$BUILD_LOGFILE"

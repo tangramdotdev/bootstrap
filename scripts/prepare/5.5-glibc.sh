@@ -7,8 +7,8 @@ BUILD_LOGFILE=$LOGDIR/5.5-glibc.log
 pushd "$LFS"/sources
 tar xf glibc-2.35.tar.xz
 pushd glibc-2.35
-ln -sfv ../lib/ld-linux-x86-64.so.2 "$LFS"/lib64 | sudo tee -a "$BUILD_LOGFILE"
-ln -sfv ../lib/ld-linux-x86-64.so.2 "$LFS"/lib64/ld-lsb-x86-64.so.3 | sudo tee -a "$BUILD_LOGFILE"
+ln -sfv ../lib/ld-linux-aarch64.so.2 "$LFS"/lib64 | sudo tee -a "$BUILD_LOGFILE"
+ln -sfv ../lib/ld-linux-aarch64.so.2 "$LFS"/lib64/ld-lsb-aarch64.so.3 | sudo tee -a "$BUILD_LOGFILE"
 patch -Np1 -i ../glibc-2.35-fhs-1.patch | sudo tee -a "$BUILD_LOGFILE"
 mkdir -v build
 pushd build
@@ -26,7 +26,7 @@ sed '/RTLDLIST=/s@/usr@@g' -i "$LFS"/usr/bin/ldd | sudo tee -a "$BUILD_LOGFILE"
 # Do sanity check
 echo 'int main(){}' | sudo tee -a dummy.c "$BUILD_LOGFILE"
 "$LFS_TGT"-gcc dummy.c | sudo tee -a "$BUILD_LOGFILE"
-# should return `[Requesting program interpreter: /lib64/ld-linux-x86-64.so.2]`
+# should return `[Requesting program interpreter: /lib64/ld-linux-aarch64.so.2]`
 readelf -l a.out | grep '/ld-linux' | sudo tee -a "$BUILD_LOGFILE"
 rm -v dummy.c a.out | sudo tee -a "$BUILD_LOGFILE"
 # Finalize limits.h header

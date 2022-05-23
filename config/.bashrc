@@ -7,7 +7,7 @@ umask 022
 # Below this is actually redundant, handled in the Dockerfile, but doesn't hurt to enforce
 LFS=/mnt/lfs
 LC_ALL=POSIX
-LFS_TGT=x86_64-lfs-linux-gnu
+LFS_TGT=aarch64-lfs-linux-gnu
 PATH=/usr/bin
 if [ ! -L /bin ]; then PATH=/bin:$PATH; fi
 PATH="$LFS"/tools/bin:$PATH

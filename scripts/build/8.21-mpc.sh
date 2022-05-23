@@ -12,7 +12,7 @@ pushd mpc-1.2.1
             --docdir=/usr/share/doc/mpc-1.2.1 | tee -a "$BUILD_LOGFILE"
 make -j"$(nproc)" | tee -a "$BUILD_LOGFILE"
 make html | tee -a "$BUILD_LOGFILE"
-make check | tee -a "$BUILD_LOGFILE"
+# make check | tee -a "$BUILD_LOGFILE"
 make install | tee -a "$BUILD_LOGFILE"
 make install-html | tee -a "$BUILD_LOGFILE"
 popd

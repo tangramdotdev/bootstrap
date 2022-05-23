@@ -14,12 +14,7 @@ Otherwise, ask Ben for the link to the prepared tarball. Extract this to the `to
 
 Eventually, this will be hosted in a nice place, and a `2` mode will take care of that for you.
 
-### Initial Cross-Toolchain
-
-Building the cross-toolchain to the point where it can be used as a chroot takes about 20 minutes on Ben's computer. There is a premade tarball containing the result of the build to this point. Run `tar xpvf lfs-11.1-initial-chroot.tar.xz` from the project root and set `ENV EXISTING_CROSS_TOOLCHAIN=1`. Take care to include `p` - permissions must be preserved when unpacking. The provided `reset-ch7.sh` script will reset `lfs/` to this state. Set to `0` to build the whole thing from scratch. This tarball includes all the sources, and the `FETCH_TOOLCHAIN_MODE` will be ignored, no packages will be fetched. It is unnecessary to populate the `toolchain/` directory first. This mode has the effect of skipping directly to [Chapter 7](https://www.linuxfromscratch.org/lfs/downloads/stable/LFS-BOOK-11.1-NOCHUNKS.html#ch-tools-introduction-chroot) and beginning there.
-
 ## Acknowledgements
 
 - [LFS 11.1](https://www.linuxfromscratch.org/lfs/downloads/stable/LFS-BOOK-11.1-NOCHUNKS.html)
 - [reinterpretcat/lfs](https://github.com/reinterpretcat/lfs)
-

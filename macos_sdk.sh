@@ -45,11 +45,6 @@ cp -r -H -n "unpacked/CLTools_Executables.pkg/Payload/Library" "$OUTDIR"
 popd
 popd
 
-# Clean unnecesssary elements from SDK
-rm -rf "$OUTDIR"/Library/Developer/CommandLineTools/usr/{bin,lib}/swift*
-rm -rf "$OUTDIR"/Library/Developer/CommandLineTools/SDKs/MaxOSX12.3.sdk/usr/share/man
-rm -rf "$OUTDIR"/Library/Developer/CommandLineTools/SDKs/MaxOSX12.3.sdk/usr/lib/swift
-
 # Package SDK
 tar -C "$OUTDIR"/Library/Developer/CommandLineTools -cJpof toolchain-arm64-macos.tar.xz .
 

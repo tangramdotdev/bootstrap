@@ -13,3 +13,4 @@
 /tmp
 /sdk
 /.vscode
+**/*.gpg

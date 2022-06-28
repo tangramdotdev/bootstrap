@@ -5,7 +5,8 @@ set -eux
 export PREFIX="$PWD"/chroot
 # should be relative to root of chroot!
 lib_dir=$PREFIX/usr/lib
-dynamic_linker=$PREFIX/usr/lib/ld-linux-x86-64.so.2
+dynamic_linker=$PREFIX/usr/lib/ld-linux-aarch64.so.1
+triple=aarch64-unknown-linux-gnu
 elf_magic_bytes=$(echo '\0x7f\0x45\0x4c\0x46' | xxd -r)
 
 is_elf() {
@@ -32,5 +33,5 @@ patch_all_elfs() {
 }
 
 patch_all_elfs "$PREFIX"/usr/bin
-patch "$PREFIX"/usr/libexec/gcc/x86_64-pc-linux-gnu/11.2.0/cc1
-patch "$PREFIX"/usr/libexec/gcc/x86_64-pc-linux-gnu/11.2.0/collect2
+patch "$PREFIX"/usr/libexec/gcc/$triple/11.2.0/cc1
+patch "$PREFIX"/usr/libexec/gcc/$triple/11.2.0/collect2

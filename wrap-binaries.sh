@@ -26,7 +26,7 @@ EOF
 
 wrap_all_elfs() {
   # This function wraps all executable binaries in the provided dir, excluding shell scripts
-  find bootstrap_toolchain/usr/bin/ -type f -executable -exec sh -c "file -i '{}' | grep -q 'x-executable; charset=binary'" \; -print | while read line; do wrap $line; done
+  find "$1" -type f -executable -exec sh -c "file -i '{}' | grep -q 'x-executable; charset=binary'" \; -print | while read line; do wrap $line; done
 }
 
 wrap_all_elfs "$PREFIX"/usr/bin

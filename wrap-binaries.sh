@@ -16,7 +16,8 @@ wrap() {
   # Create wrapper
   # TODO - should point relative to current file, not absolute path.
   cat > "$1" <<EOF
-DIR=\$(cd \$(dirname \$0); pwd)
+#DIR=\$(cd \$(dirname \$0); pwd)
+DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 INTERPRETER=$dynamic_linker
 LC_ALL=C \${INTERPRETER} --inhibit-cache --library-path "$lib_dir" \$DIR/"$file"_unwrapped
 EOF

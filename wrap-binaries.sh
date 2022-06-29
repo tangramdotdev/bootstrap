@@ -28,7 +28,7 @@ wrap() {
   # TODO - should point relative to current file, not absolute path.
   cat > "$1" <<EOF
 DIR=\$(cd \$(dirname \$0); pwd)
-INTERPRETER=$libdir/ld-linux-x86-64.so.2
+INTERPRETER=$lib_dir/ld-linux-x86-64.so.2
 LC_ALL=C \${INTERPRETER} --inhibit-cache --library-path $lib_dir \$DIR/"$1_unwrapped"
 EOF
   # Make it executable

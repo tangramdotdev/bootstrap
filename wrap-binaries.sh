@@ -23,13 +23,15 @@ patch() {
 
 wrap() {
   # Rename file
-  mv "$1" "$1_unwrapped"
+  local dir=$(dirname -- $1)
+  local file=$(basename -- $1)
+  mv "$1" "$dir"/"$file"_unwrapped
   # Create wrapper
   # TODO - should point relative to current file, not absolute path.
   cat > "$1" <<EOF
 DIR=\$(cd \$(dirname \$0); pwd)
-INTERPRETER=$lib_dir/ld-linux-x86-64.so.2
-LC_ALL=C \${INTERPRETER} --inhibit-cache --library-path $lib_dir \$DIR/"$1_unwrapped"
+INTERPRETER=$dynamic_linker
+LC_ALL=C \${INTERPRETER} --inhibit-cache --library-path "$lib_dir" \$DIR/"$file"_unwrapped
 EOF
   # Make it executable
   chmod +x "$1"

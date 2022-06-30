@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 set -euxo pipefail
 
@@ -22,7 +22,7 @@ fi
 triple="$arch"-unknown-linux-gnu
 echo $triple
 
-wrap() {
+wrap_one() {
   # Rename file
   local dir=${1%/*}
   local file=${1##*/}

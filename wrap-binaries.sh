@@ -32,7 +32,7 @@ wrap_one() {
 DIR=\$( cd -- "\${BASH_SOURCE[0]%/*}" &> /dev/null && pwd )
 LIB_DIR="\$DIR"/../lib
 INTERPRETER=\${LIB_DIR}/"$dynamic_linker"
-LC_ALL=C \${INTERPRETER} --inhibit-cache --library-path \${LIB_DIR} "$file"_unwrapped "\$@"
+LC_ALL=C \${INTERPRETER} --inhibit-cache --library-path \${LIB_DIR} "\$DIR"/"$file"_unwrapped "\$@"
 EOF
   # Make it executable
   chmod +x "$1"
@@ -48,7 +48,7 @@ wrap_five() {
 DIR=\$( cd -- "\${BASH_SOURCE[0]%/*}" &> /dev/null && pwd )
 LIB_DIR="\$DIR"/../../../../../lib
 INTERPRETER=\${LIB_DIR}/"$dynamic_linker"
-LC_ALL=C \${INTERPRETER} --inhibit-cache --library-path \${LIB_DIR} "\$DIR"/"$file"_unwrapped "\$@"
+LC_ALL=C \${INTERPRETER} --inhibit-cache --library-path \${LIB_DIR} "$file"_unwrapped "\$@"
 EOF
   # Make it executable
   chmod +x "$1"
@@ -60,7 +60,7 @@ wrap_bin_dir() {
   find "$1" -type f -executable -exec sh -c "file -i '{}' | grep -q 'x-executable; charset=binary'" \; -print | while read line; do wrap_one $line; done
 }
 
-wrap_bin_dir "$PREFIX"/usr/bin
-wrap_five "$PREFIX"/usr/libexec/gcc/$triple/11.2.0/cc1
-wrap_five "$PREFIX"/usr/libexec/gcc/$triple/11.2.0/collect2
+wrap_bin_dir "$PREFIX"usr/bin
+#wrap_five "$PREFIX"/usr/libexec/gcc/$triple/11.2.0/cc1
+#wrap_five "$PREFIX"/usr/libexec/gcc/$triple/11.2.0/collect2
 

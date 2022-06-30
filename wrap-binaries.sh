@@ -32,7 +32,7 @@ wrap() {
   # Create wrapper
   # TODO - should point relative to current file, not absolute path.
   cat > "$1" <<EOF
-DIR=$( cd -- "${BASH_SOURCE[0]%/*}" &> /dev/null && pwd )
+DIR=$( cd -- "\${BASH_SOURCE[0]%/*}" &> /dev/null && pwd )
 # TODO traverse a certain amount?
 LIB_DIR="$DIR"/../lib
 INTERPRETER=\${LIB_DIR}/"$dynamic_linker"

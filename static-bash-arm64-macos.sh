@@ -40,7 +40,7 @@ make -j"$nproc"
 popd
 
 # Package
-tar -C "$pkg" -cJf "$pkg"-arm64-macos.tar.xz "$name"
+gtar -C "$pkg" -cJf "$pkg"-arm64-macos.tar.xz "$name"
 
 # Cleanup
-rm -rf "$pkg"
+# rm -rf "$pkg"

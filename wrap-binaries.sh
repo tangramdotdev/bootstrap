@@ -30,13 +30,12 @@ wrap() {
   local file=${1##*/}
   mv "$1" "$dir"/"$file"_unwrapped
   # Create wrapper
-  # TODO - should point relative to current file, not absolute path.
   cat > "$1" <<EOF
-DIR=$( cd -- "\${BASH_SOURCE[0]%/*}" &> /dev/null && pwd )
+DIR=\$( cd -- "\${BASH_SOURCE[0]%/*}" &> /dev/null && pwd )
 # TODO traverse a certain amount?
-LIB_DIR="$DIR"/../lib
+LIB_DIR="\$DIR"/../lib
 INTERPRETER=\${LIB_DIR}/"$dynamic_linker"
-LC_ALL=C \${INTERPRETER} --inhibit-cache --library-path ${LIB_DIR} \$DIR/"$file"_unwrapped
+LC_ALL=C \${INTERPRETER} --inhibit-cache --library-path \${LIB_DIR} \$DIR/"$file"_unwrapped
 EOF
   # Make it executable
   chmod +x "$1"

@@ -48,7 +48,7 @@ wrap_five() {
 DIR=\$( cd -- "\${BASH_SOURCE[0]%/*}" &> /dev/null && pwd )
 LIB_DIR="\$DIR"/../../../../../lib
 INTERPRETER=\${LIB_DIR}/"$dynamic_linker"
-LC_ALL=C \${INTERPRETER} --inhibit-cache --library-path \${LIB_DIR} "$file"_unwrapped "\$@"
+LC_ALL=C \${INTERPRETER} --inhibit-cache --library-path \${LIB_DIR} "\$DIR"/"$file"_unwrapped "\$@"
 EOF
   # Make it executable
   chmod +x "$1"

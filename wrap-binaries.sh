@@ -39,6 +39,23 @@ EOF
   chmod +x "$1"
 }
 
+wrap_five() {
+  # Rename file
+  local dir=${1%/*}
+  local file=${1##*/}
+  mv "$1" "$dir"/"$file"_unwrapped
+  # Create wrapper
+  cat > "$1" <<EOF
+#!/bin/sh
+DIR=\$( cd -- "\${0%/*}" && pwd )
+LIB_DIR=\${DIR}/../../../../../lib
+INTERPRETER=\${LIB_DIR}/"$dynamic_linker"
+\${INTERPRETER} --inhibit-cache --library-path \${LIB_DIR} \${DIR}/"$file"_unwrapped "\$@"
+EOF
+  # Make it executable
+  chmod +x "$1"
+}
+
 wrap_bin_dir() {
   # $1 is the file to wrap
   # This function wraps all executable binaries in the provided dir, excluding shell scripts
@@ -46,3 +63,6 @@ wrap_bin_dir() {
 }
 
 wrap_bin_dir "$PREFIX"usr/bin
+wrap_five "$PREFIX"usr/libexec/gcc/$triple/11.2.0/cc1
+wrap_five "$PREFIX"usr/libexec/gcc/$triple/11.2.0/cc1plus
+wrap_five "$PREFIX"usr/libexec/gcc/$triple/11.2.0/collect2

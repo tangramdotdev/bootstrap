@@ -51,10 +51,17 @@ sh /tools/8.32-bison.sh
 sh /tools/8.33-grep.sh
 sh /tools/8.34-bash.sh
 sh /tools/8.35-libtool.sh
+sh /tools/8.36-gdbm.sh
+sh /tools/8.37-gperf.sh
+sh /tools/8.38-expat.sh
+sh /tools/8.40-less.sh
+sh /tools/8.41-perl.sh
 sh /tools/8.44-autoconf.sh
 sh /tools/8.45-automake.sh
 sh /tools/8.46-openssl.sh
 sh /tools/8.48-libelf.sh
+sh /tools/8.49-libffi.sh
+sh /tools/8.50-python.sh
 sh /tools/8.53-coreutils.sh
 sh /tools/8.64-make.sh
 sh /tools/8.65-patch.sh

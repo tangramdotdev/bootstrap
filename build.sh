@@ -5,7 +5,7 @@
 DEST=chroot
 OCI=podman
 
-set -euo pipefail
+set -euxo pipefail
 if [ "$( $OCI ps -a | grep -c lfs )" -gt 0 ]; then
   $OCI rm lfs
 fi
@@ -23,8 +23,5 @@ mv lfs $DEST
 rm -rfv $DEST/usr/share/{doc,man,info}
 rm -rfv $DEST/usr/share/i18n/locales/*
 find $DEST/usr/share/locale ! \( -name "en_US" -o -name "en_US.utf8" \) -type d -exec rm -rf {} +
-rm -rfv $DEST/usr/lib/{perl5,python3.10,libpython*,*tcl*}
-rm -rfv $DEST/usr/bin/{perl*,python3*}
-rm -rfv $DEST/usr/include/python3*
 find $DEST -depth -name \*.dbg -exec rm -f {} +
 rm -rfv $DEST/{lfs,logs,sources,tools}

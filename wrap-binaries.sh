@@ -10,7 +10,7 @@ fi
 export PREFIX="$1"
 arch=$(uname -m)
 
-if [ "$arch" = "aarch64" ]; then
+if [ "$arch" = "aarch64" -o "$arch" = "arm64" ]; then
   dynamic_linker=ld-linux-aarch64.so.1
 elif [ "$arch" = "x86_64" ]; then
   dynamic_linker=ld-linux-x86-64.so.2
@@ -59,7 +59,10 @@ EOF
 wrap_bin_dir() {
   # $1 is the file to wrap
   # This function wraps all executable binaries in the provided dir, excluding shell scripts
-  find "$1" -type f -executable -exec sh -c "file -i '{}' | grep -q 'x-executable; charset=binary'" \; -print | while read line; do wrap_one $line; done
+  # NOTE - the commented one only works on linux.
+  # find "$1" -type f -executable -exec sh -c "file -i '{}' | grep -q 'x-executable; charset=binary'" \; -print | while read line; do wrap_one $line; done
+  # This version just checks to see if any executable bit is set.
+  find "$1" -type f -perm +ugo+x -print | while read line; do wrap_one $line; done
 }
 
 wrap_bin_dir "$PREFIX"usr/bin

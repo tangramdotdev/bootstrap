@@ -19,8 +19,11 @@ else
   exit 1
 fi
 
-triple="$arch"-unknown-linux-gnu
-echo $triple
+# TODO - this is broken - on arm64, it still needs to be aarch64!
+#triple="$arch"-unknown-linux-gnu
+triple=aarch64-unknown-linux-gnu
+#echo $triple
+
 
 wrap_one() {
   # Rename file
@@ -62,7 +65,7 @@ wrap_bin_dir() {
   # NOTE - the commented one only works on linux.
   # find "$1" -type f -executable -exec sh -c "file -i '{}' | grep -q 'x-executable; charset=binary'" \; -print | while read line; do wrap_one $line; done
   # This version just checks to see if any executable bit is set.
-  find "$1" -type f -perm +ugo+x -print | while read line; do wrap_one $line; done
+  find "$1" -type f -perm +ugo+x -exec sh -c "file '{}' | grep -q 'ELF 64-bit LSB executable'" \; -print | while read line; do wrap_one $line; done
 }
 
 wrap_bin_dir "$PREFIX"usr/bin

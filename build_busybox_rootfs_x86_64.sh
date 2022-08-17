@@ -17,7 +17,7 @@ ROOTFS="$TOP/rootfs"
 prepareDir() {
     mkdir -p "$SOURCES" # this should already be mounted in
     rm -rf "$BUILDS" && mkdir -p "$BUILDS"
-    rm -rf "$ROOTFS" && mkdir -p "$ROOTFS"/{bin,sbin,include,etc/init.d,home/root,proc,share,sys,usr/lib}
+    rm -rf "$ROOTFS" && mkdir -p "$ROOTFS"/{bin,include,share,usr/lib}
 }
 
 # download a tarball
@@ -130,3 +130,5 @@ prepareBusybox
 export PATH="$ROOTFS/usr/bin:$PATH"
 prepareLinuxHeaders
 preparePython
+
+sh /bootstrap/wrap-binaries.sh /bootstrap/x86_64/rootfs

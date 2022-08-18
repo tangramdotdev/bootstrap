@@ -5,7 +5,7 @@ set -euxo pipefail
 
 apt-get update
 apt-get upgrade -y
-apt-get install -y build-essential libncurses5-dev gawk wget
+apt-get install -y build-essential libncurses5-dev gawk m4 wget
 
 NPROC=$(nproc)
 
@@ -123,7 +123,7 @@ prepareBison() {
     unpackSource "$BISON_PKG"
     cd "$BUILDS"/"$BISON_VER"
     ./configure --prefix="$ROOTFS"
-    make -j"$NRPOC"
+    make -j"$NPROC"
     make install
     cd -
 }
@@ -137,8 +137,7 @@ preparePython() {
     fetchSource "$PYTHON_URL" "$PYTHON_PKG"
     unpackSource "$PYTHON_PKG"
     cd "$BUILDS"/"$PYTHON_VER"
-    TOOLCHAIN="$ROOTFS"/toolchain
-    ./configure CC="$TOOLCHAIN"/bin/gcc LDFLAGS="-static" --prefix="$ROOTFS"/usr        \
+    ./configure LDFLAGS="-static" --prefix="$ROOTFS"/usr        \
             --disable-shared      \
             --enable-optimizations
     # TODO - actually resolve errors but for now, just ignore
@@ -154,7 +153,7 @@ prepareDir
 prepareToolchain
 prepareMake
 prepareToybox
-export PATH="$ROOTFS/bin:$ROOTFS/usr/bin:$PATH"
+# export PATH="$ROOTFS/bin:$ROOTFS/usr/bin:$PATH"
 prepareLinuxHeaders
 prepareBison
 preparePython

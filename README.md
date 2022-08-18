@@ -11,6 +11,8 @@ Run `./build_bootstrap.sh` to produce all 3 bundles.  There are two separate Lin
 - x86_64 macOS
 - aarch64 macOS
 
+The build will produce artifacts directly in this folder via volume mounting, in gitignored locations.
+
 ### Requirements
 
 These scripts are intended to run on MacOS 12.3 or higher with [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed.

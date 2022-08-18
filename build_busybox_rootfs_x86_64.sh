@@ -7,6 +7,8 @@ apt-get update
 apt-get upgrade -y
 apt-get install -y build-essential libncurses5-dev gawk wget
 
+NPROC=$(nproc)
+
 # move into the shared dir.
 cd /bootstrap
 
@@ -17,7 +19,7 @@ ROOTFS="$TOP/rootfs"
 prepareDir() {
     mkdir -p "$SOURCES" # this should already be mounted in
     rm -rf "$BUILDS" && mkdir -p "$BUILDS"
-    rm -rf "$ROOTFS" && mkdir -p "$ROOTFS"/{bin,include,share,usr/lib}
+    rm -rf "$ROOTFS" && mkdir -p "$ROOTFS"/{bin,include,share,usr/bin,usr/lib}
 }
 
 # download a tarball
@@ -45,59 +47,81 @@ prepareToolchain() {
     cd "$ROOTFS"
     tar xf "$SOURCES"/"$MUSL_PKG"
     mv "$MUSL" toolchain
+    cd -
 }
 
 MAKE_VER="make-4.3"
 MAKE_PKG="$MAKE_VER.tar.gz"
 MAKE_URL="https://ftp.gnu.org/gnu/make/$MAKE_PKG"
 prepareMake() {
-    fetchSource "$MAKE_URL" "MAKE_PKG"
+    fetchSource "$MAKE_URL" "$MAKE_PKG"
     unpackSource "$MAKE_PKG"
     cd "$BUILDS"/"$MAKE_VER"
     ./configure \
 	CC="$ROOTFS/toolchain/usr/bin/gcc" \
 	LDFLAGS="-static" \
-	--enable-static \
-	--disable-shared \
 	--prefix="$ROOTFS"
     ./build.sh
     ./make install
     cd -
 }
 
-# TODO - switch to tinybox
-BUSYBOX_CONFIG="/bootstrap/busybox-static-config"
-BUSYBOX_VER=busybox-1.35.0
-BUSYBOX_PKG="$BUSYBOX_VER.tar.bz2"
-BUSYBOX_URL="https://busybox.net/downloads/$BUSYBOX_PKG"
-prepareBusybox() {
-    fetchSource "$BUSYBOX_URL" "$BUSYBOX_PKG"
-    unpackSource "$BUSYBOX_PKG"
-    cd "$BUILDS"/"$BUSYBOX_VER"
-    cp "$BUSYBOX_CONFIG" ./.config
-    make
-    CONFIG_PREFIX="$ROOTFS" make install
+# toybox
+TOYBOX="toybox-x86_64"
+TOYBOX_URL="http://landley.net/toybox/bin/$TOYBOX"
+prepareToybox() {
+    cd "$ROOTFS"/bin
+    wget $TOYBOX_URL
+    mv "$TOYBOX" toybox
+    chmod +x toybox
+    cd -
+    cd "$ROOTFS"/bin
+    for i in $(./toybox); do ln -s toybox "$i"; done
     cd -
 }
 
-# linux-headers
-LINUX_VER="5.18.4"
-LINUX="linux-$LINUX_VER"
-LINUX_PKG="$LINUX.tar.xz"
-LINUX_URL="https://cdn.kernel.org/pub/linux/kernel/v5.x/$LINUX_PKG"
+# # linux-headers
+# LINUX_VER="5.18.4"
+# LINUX="linux-$LINUX_VER"
+# LINUX_PKG="$LINUX.tar.xz"
+# LINUX_URL="https://cdn.kernel.org/pub/linux/kernel/v5.x/$LINUX_PKG"
+# LINUX_HEADER_PREFIX="$ROOTFS/include/linux"
+# prepareLinuxHeaders() {
+#     fetchSource "$LINUX_URL" "$LINUX_PKG"
+#     unpackSource "$LINUX_PKG"
+# 	cd "$BUILDS"/"$LINUX"
+# 	make mrproper
+# 	make headers
+# 	mkdir -p "$LINUX_HEADER_PREFIX"
+# 	cp -r usr/include "$LINUX_HEADER_PREFIX"
+# 	find "$LINUX_HEADER_PREFIX" -type f ! -name '*.h' -delete
+# 	mkdir -p "$LINUX_HEADER_PREFIX"/include/config
+# 	echo "$LINUX_VER"-default > "$LINUX_HEADER_PREFIX"/include/config/kernel.release
+# 	cd -
+# }
+LINUX_HEADERS="linux-headers-prebuild-amd64-linux"
+LINUX_HEADERS_PKG="$LINUX_HEADERS.tar.xz"
+LINUX_HEADERS_URL="https://github.com/tangramdotdev/bootstrap/releases/download/v0.0.0/$LINUX_HEADERS_PKG"
 LINUX_HEADER_PREFIX="$ROOTFS/include/linux"
 prepareLinuxHeaders() {
-    fetchSource "$LINUX_URL" "$LINUX_PKG"
-    unpackSource "LINUX_PKG"
-	cd "BUILDS"/"$LINUX"
-	make mrproper
-	make headers
-	mkdir -p "$LINUX_HEADER_PREFIX"
-	cp -r usr/include "$LINUX_HEADER_PREFIX"
-	find "$LINUX_HEADER_PREFIX" -type f ! -name '*.h' -delete
-	mkdir -p "$LINUX_HEADER_PREFIX"/include/config
-	echo "$LINUX_VER"-default > "$LINUX_HEADER_PREFIX"/include/config/kernel.release
-	cd -
+    fetchSource "$LINUX_HEADERS_URL" "$LINUX_HEADERS_PKG"
+    unpackSource "$LINUX_HEADERS_PKG"
+    mkdir -p "$LINUX_HEADER_PREFIX"
+    mv "$BUILDS"/include "$LINUX_HEADER_PREFIX"
+}
+
+# bison
+BISON_VER="bison-3.8.2"
+BISON_PKG="$BISON_VER.tar.xz"
+BISON_URL="https://ftp.gnu.org/gnu/bison/$BISON_PKG"
+prepareBison() {
+    fetchSource "$BISON_URL" "$BISON_PKG"
+    unpackSource "$BISON_PKG"
+    cd "$BUILDS"/"$BISON_VER"
+    ./configure --prefix="$ROOTFS"
+    make -j"$NRPOC"
+    make install
+    cd -
 }
 
 # python
@@ -114,7 +138,7 @@ preparePython() {
             --disable-shared      \
             --enable-optimizations
     # TODO - actually resolve errors but for now, just ignore
-    make LDFLAGS="-static" LINKFORSAHRED=" " -j"$(nproc)"
+    make LDFLAGS="-static" LINKFORSHARED=" " -j"$NPROC"
     make install 2>/dev/null
     cd -
 }
@@ -125,10 +149,10 @@ preparePython() {
 prepareDir
 prepareToolchain
 prepareMake
-export PATH="$ROOTFS/bin:$PATH"
-prepareBusybox
-export PATH="$ROOTFS/usr/bin:$PATH"
+prepareToybox
+export PATH="$ROOTFS/bin:$ROOTFS/usr/bin:$PATH"
 prepareLinuxHeaders
+prepareBison
 preparePython
 
-sh /bootstrap/wrap-binaries.sh /bootstrap/x86_64/rootfs
+#sh /bootstrap/wrap-binaries.sh /bootstrap/x86_64/rootfs

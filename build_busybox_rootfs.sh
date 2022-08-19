@@ -8,11 +8,12 @@ apt-get upgrade -y
 apt-get install -y build-essential libncurses5-dev gawk m4 wget
 
 NPROC=$(nproc)
+ARCH=$(uname -m)
 
 # move into the shared dir.
 cd /bootstrap
 
-TOP="/bootstrap/aarch64"
+TOP="/bootstrap/$ARCH"
 SOURCES="/bootstrap/sources"
 BUILDS="$TOP/builds"
 ROOTFS="$TOP/rootfs"
@@ -39,7 +40,7 @@ unpackSource() {
 }
 
 # grab musl toolchain
-MUSL=aarch64-linux-musl-native
+MUSL="$ARCH"-linux-musl-native
 MUSL_PKG="$MUSL".tgz
 MUSL_URL=https://musl.cc/"$MUSL_PKG"
 prepareToolchain() {
@@ -67,7 +68,7 @@ prepareMake() {
 }
 
 # toybox
-TOYBOX="toybox-aarch64"
+TOYBOX="toybox-$ARCH"
 TOYBOX_URL="http://landley.net/toybox/bin/$TOYBOX"
 prepareToybox() {
     cd "$ROOTFS"/bin
@@ -80,11 +81,7 @@ prepareToybox() {
     cd -
 }
 
-# linux-headers
-# TODO - why doesn't this work?
-# + make mrproper
-# make[1]: *** Documentation/Kbuild: Is a directory.  Stop.
-# make: *** [Makefile:1841: _clean_Documentation] Error 2
+# # linux-headers
 # LINUX_VER="5.18.4"
 # LINUX="linux-$LINUX_VER"
 # LINUX_PKG="$LINUX.tar.xz"
@@ -103,7 +100,11 @@ prepareToybox() {
 # 	echo "$LINUX_VER"-default > "$LINUX_HEADER_PREFIX"/include/config/kernel.release
 # 	cd -
 # }
-LINUX_HEADERS="linux-headers-prebuild-aarch64-linux"
+if [ "$ARCH" = "aarch64" ]; then
+    LINUX_HEADERS="linux-headers-prebuild-aarch64-linux"
+else
+    LINUX_HEADERS="linux-headers-prebuild-amd64-linux"
+fi
 LINUX_HEADERS_PKG="$LINUX_HEADERS.tar.xz"
 LINUX_HEADERS_URL="https://github.com/tangramdotdev/bootstrap/releases/download/v0.0.0/$LINUX_HEADERS_PKG"
 LINUX_HEADER_PREFIX="$ROOTFS/include/linux"
@@ -153,9 +154,6 @@ prepareDir
 prepareToolchain
 prepareMake
 prepareToybox
-# export PATH="$ROOTFS/bin:$ROOTFS/usr/bin:$PATH"
 prepareLinuxHeaders
 prepareBison
 preparePython
-
-#sh /bootstrap/wrap-binaries.sh /bootstrap/aarch64/rootfs

@@ -15,4 +15,5 @@ ln -s MacOSX12.sdk MacOSX.sdk
 popd
 sh ./build_macos_bash
 mv ./bash "$MACOS_BOOTSTRAP"/usr/bin
+cp /bin/* "$MACOS_BOOTSTRAP"/bin
 tar -C "$MACOS_BOOTSTRAP" -cJf macos_bootstrap_universal_"$(date +"%Y%m%d")".tar.xz .

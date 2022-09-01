@@ -20,7 +20,7 @@ ROOTFS="$TOP/rootfs"
 prepareDir() {
     mkdir -p "$SOURCES" # this should already be mounted in
     rm -rf "$BUILDS" && mkdir -p "$BUILDS"
-    rm -rf "$ROOTFS" && mkdir -p "$ROOTFS"/{bin,include,share,usr/bin,usr/lib}
+    rm -rf "$ROOTFS" && mkdir -p "$ROOTFS"/{bin,include,share,tmp,usr/bin,usr/lib}
 }
 
 # download a tarball
@@ -78,6 +78,43 @@ prepareToybox() {
     cd -
     cd "$ROOTFS"/bin
     for i in $(./toybox); do ln -s toybox "$i"; done
+    cd -
+}
+
+# coreutils
+COREUTILS_VER="coreutils-9.1"
+COREUTILS_PKG="$COREUTILS_VER.tar.xz"
+COREUTILS_URL="https://ftp.gnu.org/gnu/coreutils/$COREUTILS_PKG"
+prepareCoreutils() {
+    fetchSource "$COREUTILS_URL" "$COREUTILS_PKG"
+    unpackSource "$COREUTILS_PKG"
+    cd "$BUILDS"/"$COREUTILS_VER"
+    export CC="$ROOTFS"/toolchain/usr/bin/gcc
+    export CFLAGS="-static -Os -ffunction-sections -fdata-sections"
+    FORCE_UNSAFE_CONFIGURE=1 ./configure \
+        CFLAGS="$CFLAGS" \
+        LDFLAGS="-Wl,--gc-sections" \
+        --prefix="$ROOTFS"
+    make -j"$NPROC"
+    make install
+    unset CC
+    unset CFLAGS
+    cd -
+}
+
+# gawk
+GAWK_VER="gawk-5.1.1"
+GAWK_PKG="$GAWK_VER.tar.xz"
+GAWK_URL="https://ftp.gnu.org/gnu/gawk/$GAWK_PKG"
+prepareGawk() {
+    fetchSource "$GAWK_URL" "$GAWK_PKG"
+    unpackSource "$GAWK_PKG"
+    cd "$BUILDS"/"$GAWK_VER"
+    export CC="$ROOTFS"/toolchain/usr/bin/gcc
+    ./configure LDFLAGS="-static" --prefix="$ROOTFS"/usr
+    make -j"$NPROC"
+    make install
+    unset CC
     cd -
 }
 
@@ -147,6 +184,15 @@ preparePython() {
     cd -
 }
 
+fixSymlinks() {
+    # the ld-linux symlink is absolute.  Point to libc in current dir by relative path instead.
+    cd "$ROOTFS"/toolchain/lib
+    interp="ld-musl-$ARCH.so.1"
+    rm "$interp"
+    ln -s ./libc.so "$interp"
+    cd -
+}
+
 ### RUN
 
 # Set up chroot
@@ -154,6 +200,9 @@ prepareDir
 prepareToolchain
 prepareMake
 prepareToybox
+prepareCoreutils
+prepareGawk
 prepareLinuxHeaders
 prepareBison
+fixSymlinks
 preparePython

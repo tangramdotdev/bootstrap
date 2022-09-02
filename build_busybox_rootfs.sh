@@ -111,7 +111,39 @@ prepareGawk() {
     unpackSource "$GAWK_PKG"
     cd "$BUILDS"/"$GAWK_VER"
     export CC="$ROOTFS"/toolchain/usr/bin/gcc
-    ./configure LDFLAGS="-static" --prefix="$ROOTFS"/usr
+    ./configure LDFLAGS="-static" --prefix="$ROOTFS"
+    make -j"$NPROC"
+    make install
+    unset CC
+    cd -
+}
+
+# grep
+GREP_VER="grep-3.7"
+GREP_PKG="$GREP_VER.tar.xz"
+GREP_URL="https://ftp.gnu.org/gnu/grep/$GREP_PKG"
+prepareGrep() {
+    fetchSource "$GREP_URL" "$GREP_PKG"
+    unpackSource "$GREP_PKG"
+    cd "$BUILDS"/"$GREP_VER"
+    export CC="$ROOTFS"/toolchain/usr/bin/gcc
+    ./configure LDFLAGS="-static" --prefix="$ROOTFS"
+    make -j"$NPROC"
+    make install
+    unset CC
+    cd -
+}
+
+# texinfo
+TEXINFO_VER="texinfo-6.8"
+TEXINFO_PKG="$TEXINFO_VER.tar.xz"
+TEXINFO_URL="https://ftp.gnu.org/gnu/texinfo/$TEXINFO_PKG"
+prepareTexinfo() {
+    fetchSource "$TEXINFO_URL" "$TEXINFO_PKG"
+    unpackSource "$TEXINFO_PKG"
+    cd "$BUILDS"/"$TEXINFO_VER"
+    export CC="$ROOTFS"/toolchain/usr/bin/gcc
+    ./configure LDFLAGS="-static" --prefix="$ROOTFS"
     make -j"$NPROC"
     make install
     unset CC
@@ -175,7 +207,7 @@ preparePython() {
     fetchSource "$PYTHON_URL" "$PYTHON_PKG"
     unpackSource "$PYTHON_PKG"
     cd "$BUILDS"/"$PYTHON_VER"
-    ./configure LDFLAGS="-static" --prefix="$ROOTFS"/usr        \
+    ./configure LDFLAGS="-static" --prefix="$ROOTFS"        \
             --disable-shared      \
             --enable-optimizations
     # TODO - actually resolve errors but for now, just ignore
@@ -202,6 +234,8 @@ prepareMake
 prepareToybox
 prepareCoreutils
 prepareGawk
+prepareGrep
+prepareTexinfo
 prepareLinuxHeaders
 prepareBison
 fixSymlinks

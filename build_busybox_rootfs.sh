@@ -192,9 +192,26 @@ prepareBison() {
     fetchSource "$BISON_URL" "$BISON_PKG"
     unpackSource "$BISON_PKG"
     cd "$BUILDS"/"$BISON_VER"
+    export CC="$ROOTFS"/toolchain/usr/bin/gcc
     ./configure --prefix="$ROOTFS"
     make -j"$NPROC"
     make install
+    unset CC
+    cd -
+}
+
+M4_VER="m4-1.4.19"
+M4_PKG="$M4_VER.tar.xz"
+M4_URL="https://ftp.gnu.org/gnu/m4/$M4_PKG"
+preparem4() {
+    fetchSource "$M4_URL" "$M4_PKG"
+    unpackSource "$M4_PKG"
+    cd "$BUILDS"/"$M4_VER"
+    export CC="$ROOTFS"/toolchain/usr/bin/gcc
+    ./configure LDFLAGS="-static" --prefix="$ROOTFS"
+    make -j"$NPROC"
+    make install
+    unset CC
     cd -
 }
 
@@ -207,12 +224,21 @@ preparePython() {
     fetchSource "$PYTHON_URL" "$PYTHON_PKG"
     unpackSource "$PYTHON_PKG"
     cd "$BUILDS"/"$PYTHON_VER"
-    ./configure LDFLAGS="-static" --prefix="$ROOTFS"        \
+    export CC="$ROOTFS"/toolchain/usr/bin/gcc
+    # TODO - uncomment _posixsubprocess line in Modules/Setup
+    # also the select line
+    # and math/cmath/_random/_sha512/_decimal/_contextvars
+    # did the whole "always be present" block, and unicode
+    # _testcapi and the internal one fail??
+    # also - missing _socket?
+    # binascii, _socket, mmap, csv
+    ./configure CFLAGS="-static" CPPFLAGS="-static" LDFLAGS="-static" --prefix="$ROOTFS"        \
             --disable-shared      \
             --enable-optimizations
     # TODO - actually resolve errors but for now, just ignore
-    make LDFLAGS="-static" LINKFORSHARED=" " -j"$NPROC"
+    make CFLAGS="-static" CPPFLAGS="-static" LDFLAGS="-static" LINKFORSHARED=" " -j"$NPROC"
     make install 2>/dev/null
+    unset CC
     cd -
 }
 
@@ -238,5 +264,6 @@ prepareGrep
 prepareTexinfo
 prepareLinuxHeaders
 prepareBison
+preparem4
 fixSymlinks
 preparePython

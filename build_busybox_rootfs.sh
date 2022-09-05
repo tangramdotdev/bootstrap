@@ -200,6 +200,21 @@ prepareBison() {
     cd -
 }
 
+GZIP_VER="gzip-1.12"
+GZIP_PKG="$GZIP_VER.tar.xz"
+GZIP_URL="https://ftp.gnu.org/gnu/gzip/$GZIP_PKG"
+prepareGzip() {
+    fetchSource "$GZIP_URL" "$GZIP_PKG"
+    unpackSource "$GZIP_PKG"
+    cd "$BUILDS"/"$GZIP_VER"
+    export CC="$ROOTFS"/toolchain/usr/bin/gcc
+    ./configure LDFLAGS="-static" --prefix="$ROOTFS"
+    make -j"$NPROC"
+    make install
+    unset CC
+    cd -
+}
+
 M4_VER="m4-1.4.19"
 M4_PKG="$M4_VER.tar.xz"
 M4_URL="https://ftp.gnu.org/gnu/m4/$M4_PKG"
@@ -264,6 +279,7 @@ prepareGrep
 prepareTexinfo
 prepareLinuxHeaders
 prepareBison
+prepareGzip
 preparem4
 fixSymlinks
 preparePython

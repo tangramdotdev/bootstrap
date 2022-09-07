@@ -50,7 +50,7 @@ prepareBash() {
 	cd "$TOP"/"$BASH_VER"
 	export CC="$TOP/toolchain/usr/bin/gcc"
 	export CFLAGS="-static -Os"
-	./configure
+	./configure --enable-static-link --without-bash-malloc
 	make -j"$NPROC"
 	strip bash
 	unset CC

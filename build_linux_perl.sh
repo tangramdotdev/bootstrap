@@ -9,8 +9,29 @@ SOURCES="/bootstrap/sources"
 BUILDS="$TOP/builds"
 ROOTFS="$TOP/rootfs"
 
-apk add alpine-sdk perl perl-utils
-cpan -I App::Staticperl
+apk add alpine-sdk nano perl perl-utils
+
+# copy stuff
+cp -r /usr/bin/perl* $ROOTFS/bin
+cp -r /usr/lib/perl* $ROOTFS/lib
+cp -r /usr/share/perl* $ROOTFS/share
+
+# wrap stuff
+cd $ROOTFS/bin
+mv perl .perl_unwrapped
+cat > ./perl << EOF
+#!/bin/sh
+DIR=\$(cd -- "\${0%/*}" && pwd)
+LIB_DIR=\${DIR}/../toolchain/lib
+PERL5_LIB_DIR=\${DIR}/lib/perl5/core_perl/CORE
+INTERPRETER=\${LIB_DIR}/ld-musl-$ARCH.so.1
+\${INTERPRETER} --preload \${LIB_DIR}/libc.so --preload \${PERL5_LIB_DIR}/libperl.so -- \${DIR}/.perl_unwrapped "\$@"
+EOF
+chmod +x perl
+cd -
+
+
+# cpan -I App::Staticperl
 
 # PERL_VER="perl-5.36.0"
 # PERL_PKG="$PERL_PKG.tar.gz"

@@ -194,7 +194,7 @@ prepareBison() {
     unpackSource "$BISON_PKG"
     cd "$BUILDS"/"$BISON_VER"
     export CC="$ROOTFS"/toolchain/usr/bin/gcc
-    ./configure --prefix="$ROOTFS"
+    ./configure LDFLAGS="-static" --prefix="$ROOTFS"
     make -j"$NPROC"
     make install
     unset CC

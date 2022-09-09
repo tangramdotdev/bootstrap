@@ -5,7 +5,7 @@ set -euxo pipefail
 
 apt-get update
 apt-get upgrade -y
-apt-get install -y build-essential libncurses5-dev gawk m4 wget
+apt-get install -y autotools-dev autoconf build-essential file libbz2-dev libncurses5-dev libz-dev gawk git m4 wget
 
 NPROC=$(nproc)
 ARCH=$(uname -m)
@@ -24,6 +24,7 @@ prepareDir() {
 }
 
 # download a tarball
+# FIXME - $2 is unnecessry, use bash string thingy
 fetchSource() {
     if [ ! -f "$SOURCES"/"$2" ]; then
 	cd "$SOURCES"
@@ -230,6 +231,24 @@ preparem4() {
     cd -
 }
 
+# patchelf
+
+preparePatchelf() {
+    cd "$BUILDS"
+    git clone https://github.com/NixOS/patchelf.git
+    cd patchelf
+    ./bootstrap.sh
+    ./configure \
+        CC="$ROOTFS"/toolchain/usr/bin/gcc \
+        LDFLAGS="-static" \
+        --prefix="$ROOTFS"
+    make -j"$NPROC"
+    make install
+}
+
+# perl
+# TODO run in the other script in a docker container?
+
 # python
 PYVER="3.10.6"
 PYTHON_VER="Python-$PYVER"
@@ -281,5 +300,7 @@ prepareLinuxHeaders
 prepareBison
 prepareGzip
 preparem4
+#preparePerl
+preparePatchelf
 fixSymlinks
 preparePython

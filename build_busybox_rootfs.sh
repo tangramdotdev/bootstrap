@@ -3,9 +3,13 @@
 set -euxo pipefail
 ### SETUP
 
-apt-get update
-apt-get upgrade -y
-apt-get install -y autotools-dev autoconf build-essential file libbz2-dev libncurses5-dev libz-dev gawk git m4 wget
+# apt-get update
+# apt-get upgrade -y
+# apt-get install -y autotools-dev autoconf build-essential file libbz2-dev libncurses5-dev libz-dev gawk git m4 wget
+
+apk add alpine-sdk autoconf automake bash file gawk git m4 libbz2 ncurses-dev wget xz zlib
+
+bash
 
 NPROC=$(nproc)
 ARCH=$(uname -m)
@@ -20,7 +24,13 @@ ROOTFS="$TOP/rootfs"
 prepareDir() {
     mkdir -p "$SOURCES" # this should already be mounted in
     rm -rf "$BUILDS" && mkdir -p "$BUILDS"
-    rm -rf "$ROOTFS" && mkdir -p "$ROOTFS"/{bin,include,share,tmp,usr/bin,usr/lib}
+    rm -rf "$ROOTFS"
+    mkdir -p "$ROOTFS"/bin
+    mkdir -p "$ROOTFS"/include
+    mkdir -p "$ROOTFS"/share
+    mkdir -p "$ROOTFS"/tmp
+    mkdir -p "$ROOTFS"/usr/bin
+    mkdir -p "$ROOTFS"/usr/lib
 }
 
 # download a tarball
@@ -49,6 +59,7 @@ prepareToolchain() {
     cd "$ROOTFS"
     tar xf "$SOURCES"/"$MUSL_PKG"
     mv "$MUSL" toolchain
+    # FIXME flatten into rootfs
     cd -
 }
 
@@ -247,7 +258,24 @@ preparePatchelf() {
 }
 
 # perl
-# TODO run in the other script in a docker container?
+preparePerl() {
+    mkdir -p "$BUILDS"/staticperl
+    cd "$BUILDS"/staticperl
+    wget https://fastapi.metacpan.org/source/MLEHMANN/App-Staticperl-1.46/bin/staticperl
+    chmod +x ./staticperl
+    ./staticperl install
+    ./staticperl mkperl -v --strip ppi --incglob '*'
+    mv ./perl "$ROOTFS"/bin/.perl_unwrapped
+    # FIXME - can we produce a fully static binary and avoid the wrapper?
+    cat > "$ROOTFS"/bin/perl << EOW
+#!/bin/sh
+DIR=\$(cd -- "${0%/*}" && pwd)
+LIB_DIR=\${DIR}/../toolchain/lib
+INTERPRETER=\${LIB_DIR}/ld-musl-$ARCH.so.1
+\${INTERPRETER} --preload \${LIB_DIR}/libc.so --preload -- \${DIR}/.perl_unwrapped "\$@"
+EOW
+    cd -
+}
 
 # python
 PYVER="3.10.6"
@@ -259,13 +287,16 @@ preparePython() {
     unpackSource "$PYTHON_PKG"
     cd "$BUILDS"/"$PYTHON_VER"
     export CC="$ROOTFS"/toolchain/usr/bin/gcc
-    # TODO - uncomment _posixsubprocess line in Modules/Setup
+    # FIXME - use sed to process Modules/Setup instead of copying it in.
+    # uncomment _posixsubprocess line in Modules/Setup
     # also the select line
     # and math/cmath/_random/_sha512/_decimal/_contextvars
     # did the whole "always be present" block, and unicode
     # _testcapi and the internal one fail??
     # also - missing _socket?
     # binascii, _socket, mmap, csv
+    rm Modules/Setup
+    cp /bootstrap/python-module-setup Modules/Setup
     ./configure CFLAGS="-static" CPPFLAGS="-static" LDFLAGS="-static" --prefix="$ROOTFS"        \
             --disable-shared      \
             --enable-optimizations
@@ -287,7 +318,6 @@ fixSymlinks() {
 
 ### RUN
 
-# Set up chroot
 prepareDir
 prepareToolchain
 prepareMake
@@ -300,7 +330,7 @@ prepareLinuxHeaders
 prepareBison
 prepareGzip
 preparem4
-#preparePerl
+preparePerl
 preparePatchelf
 fixSymlinks
 preparePython

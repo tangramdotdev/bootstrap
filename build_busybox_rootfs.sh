@@ -269,11 +269,12 @@ preparePerl() {
     # FIXME - can we produce a fully static binary and avoid the wrapper?
     cat > "$ROOTFS"/bin/perl << EOW
 #!/bin/sh
-DIR=\$(cd -- "${0%/*}" && pwd)
+DIR=\$(cd -- "\${0%/*}" && pwd)
 LIB_DIR=\${DIR}/../toolchain/lib
 INTERPRETER=\${LIB_DIR}/ld-musl-$ARCH.so.1
-\${INTERPRETER} --preload \${LIB_DIR}/libc.so --preload -- \${DIR}/.perl_unwrapped "\$@"
+\${INTERPRETER} --preload \${LIB_DIR}/libc.so -- \${DIR}/.perl_unwrapped "\$@"
 EOW
+    chmod +x "$ROOTFS"/bin/perl
     cd -
 }
 

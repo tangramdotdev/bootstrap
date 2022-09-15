@@ -243,7 +243,6 @@ preparem4() {
 }
 
 # patchelf
-
 preparePatchelf() {
     cd "$BUILDS"
     git clone https://github.com/NixOS/patchelf.git
@@ -275,6 +274,21 @@ INTERPRETER=\${LIB_DIR}/ld-musl-$ARCH.so.1
 \${INTERPRETER} --preload \${LIB_DIR}/libc.so -- \${DIR}/.perl_unwrapped "\$@"
 EOW
     chmod +x "$ROOTFS"/bin/perl
+    cd -
+}
+
+GPERF_VER="gperf-3.1"
+GPERF_PKG="$GPERF_VER.tar.gz"
+GPERF_URL="https://ftp.gnu.org/gnu/gperf/$GPERF_PKG"
+prepareGperf() {
+    fetchSource "$GPERF_URL" "$GPERF_PKG"
+    unpackSource "$GPERF_PKG"
+    cd "$BUILDS"/"$GPERF_VER"
+    export CC="$ROOTFS"/toolchain/usr/bin/gcc
+    ./configure LDFLAGS="-static" --prefix="$ROOTFS"
+    make -j"$NPROC"
+    make install
+    unset CC
     cd -
 }
 
@@ -331,6 +345,7 @@ prepareLinuxHeaders
 prepareBison
 prepareGzip
 preparem4
+prepareGperf
 preparePerl
 preparePatchelf
 fixSymlinks

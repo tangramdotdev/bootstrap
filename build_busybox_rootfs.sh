@@ -292,6 +292,21 @@ prepareGperf() {
     cd -
 }
 
+AUTOCONF_VER="autoconf-2.71"
+AUTOCONF_PKG="$AUTOCONF_VER.tar.xz"
+AUTOCONF_URL="https://ftp.gnu.org/gnu/autoconf/autoconf-2.71.tar.xz"
+prepareAutoconf() {
+    fetchSource "$AUTOCONF_URL" "$AUTOCONF_PKG"
+    unpackSource "$AUTOCONF_PKG"
+    cd "$BUILDS"/"$AUTOCONF_VER"
+    export CC="$ROOTFS"/toolchain/usr/bin/gcc
+    ./configure LDFLAGS="-static" --prefix="$ROOTFS"
+    make -j"$NPROC"
+    make install
+    unset CC
+    cd -
+}
+
 # python
 PYVER="3.10.6"
 PYTHON_VER="Python-$PYVER"

@@ -361,6 +361,7 @@ prepareBison
 prepareGzip
 preparem4
 prepareGperf
+prepareAutoconf
 preparePerl
 preparePatchelf
 fixSymlinks

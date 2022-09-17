@@ -182,12 +182,10 @@ prepareTexinfo() {
 	unpackSource "$TEXINFO_PKG"
 	cd "$BUILDS"/"$TEXINFO_VER"
 	export CC="$ROOTFS"/toolchain/usr/bin/gcc
-	export PERL="$ROOTFS"/bin/perl
 	./configure LDFLAGS="-static" --prefix="$ROOTFS"
 	make -j"$NPROC"
 	make install
 	unset CC
-	unset PERL
 	cd -
 }
 
@@ -326,9 +324,24 @@ AUTOCONF_VER="autoconf-2.71"
 AUTOCONF_PKG="$AUTOCONF_VER.tar.xz"
 AUTOCONF_URL="https://ftp.gnu.org/gnu/autoconf/autoconf-2.71.tar.xz"
 prepareAutoconf() {
-	fetchSource "$AUTOCONF_URL" "$AUTOCONF_PKG"
+	fetchSource "$AUTOCONF_URL"
 	unpackSource "$AUTOCONF_PKG"
 	cd "$BUILDS"/"$AUTOCONF_VER"
+	export CC="$ROOTFS"/toolchain/usr/bin/gcc
+	./configure LDFLAGS="-static" --prefix="$ROOTFS"
+	make -j"$NPROC"
+	make install
+	unset CC
+	cd -
+}
+
+XZ_VER="xz-5.2.6"
+XZ_PKG="$XZ_VER.tar.xz"
+XZ_URL="https://tukaani.org/xz/$XZ_PKG"
+prepareXz() {
+	fetchSource "$XZ_URL"
+	unpackSource "$XZ_PKG"
+	cd "$BUILDS"/"$XZ_VER"
 	export CC="$ROOTFS"/toolchain/usr/bin/gcc
 	./configure LDFLAGS="-static" --prefix="$ROOTFS"
 	make -j"$NPROC"
@@ -385,6 +398,7 @@ prepareGperf
 prepareAutoconf
 preparePerl
 prepareTexinfo
+prepareXz
 preparePatchelf
 fixSymlinks
 preparePython

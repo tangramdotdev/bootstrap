@@ -10,3 +10,5 @@
 /x86_64*
 /linux_bash
 bash
+/macos_toybox
+toybox_macos_universal

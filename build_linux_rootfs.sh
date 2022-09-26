@@ -2,7 +2,7 @@
 # This script creates a musl-based bootstrap toolchain.  Intended to run on Alpine Linux.
 
 ### SETUP
-apk add alpine-sdk autoconf automake bash file gawk git m4 libbz2 ncurses-dev wget xz zlib
+apk add alpine-sdk autoconf automake bash bison file flex gawk gettext-dev git indent m4 libbz2 libtool ncurses-dev wget xz zlib
 
 # Run remainder of script in actual bash.
 bash
@@ -47,19 +47,6 @@ unpackSource() {
 	cd -
 }
 
-# grab musl toolchain
-MUSL="$ARCH"-linux-musl-native
-MUSL_PKG="$MUSL".tgz
-MUSL_URL=https://musl.cc/"$MUSL_PKG"
-prepareToolchain() {
-	fetchSource "$MUSL_URL"
-	cd "$ROOTFS"
-	tar xf "$SOURCES"/"$MUSL_PKG"
-	mv "$MUSL" toolchain
-	# FIXME flatten into rootfs
-	cd -
-}
-
 MAKE_VER="make-4.3"
 MAKE_PKG="$MAKE_VER.tar.gz"
 MAKE_URL="https://ftp.gnu.org/gnu/make/$MAKE_PKG"
@@ -68,9 +55,8 @@ prepareMake() {
 	unpackSource "$MAKE_PKG"
 	cd "$BUILDS"/"$MAKE_VER"
 	./configure \
-	CC="$ROOTFS/toolchain/usr/bin/gcc" \
-	LDFLAGS="-static" \
-	--prefix="$ROOTFS"
+		LDFLAGS="-static" \
+		--prefix="$ROOTFS"
 	./build.sh
 	./make install
 	cd -
@@ -98,7 +84,6 @@ prepareCoreutils() {
 	fetchSource "$COREUTILS_URL"
 	unpackSource "$COREUTILS_PKG"
 	cd "$BUILDS"/"$COREUTILS_VER"
-	export CC="$ROOTFS"/toolchain/usr/bin/gcc
 	export CFLAGS="-static -Os -ffunction-sections -fdata-sections"
 	FORCE_UNSAFE_CONFIGURE=1 ./configure \
 		CFLAGS="$CFLAGS" \
@@ -106,7 +91,6 @@ prepareCoreutils() {
 		--prefix="$ROOTFS"
 	make -j"$NPROC"
 	make install
-	unset CC
 	unset CFLAGS
 	cd -
 }
@@ -118,11 +102,9 @@ prepareDiffutils() {
 	fetchSource "$DIFFUTILS_URL"
 	unpackSource "$DIFFUTILS_PKG"
 	cd "$BUILDS"/"$DIFFUTILS_VER"
-	export CC="$ROOTFS"/toolchain/usr/bin/gcc
 	./configure LDFLAGS="-static" --prefix="$ROOTFS"
 	make -j"$NPROC"
 	make install
-	unset CC
 	cd -
 }
 
@@ -133,11 +115,9 @@ prepareFindutils() {
 	fetchSource "$FINDUTILS_URL"
 	unpackSource "$FINDUTILS_PKG"
 	cd "$BUILDS"/"$FINDUTILS_VER"
-	export CC="$ROOTFS"/toolchain/usr/bin/gcc
 	./configure LDFLAGS="-static" --prefix="$ROOTFS"
 	make -j"$NPROC"
 	make install
-	unset CC
 	cd -
 }
 
@@ -149,7 +129,6 @@ prepareGawk() {
 	fetchSource "$GAWK_URL"
 	unpackSource "$GAWK_PKG"
 	cd "$BUILDS"/"$GAWK_VER"
-	export CC="$ROOTFS"/toolchain/usr/bin/gcc
 	./configure LDFLAGS="-static" --prefix="$ROOTFS"
 	make -j"$NPROC"
 	make install
@@ -165,11 +144,9 @@ prepareGrep() {
 	fetchSource "$GREP_URL"
 	unpackSource "$GREP_PKG"
 	cd "$BUILDS"/"$GREP_VER"
-	export CC="$ROOTFS"/toolchain/usr/bin/gcc
 	./configure LDFLAGS="-static" --prefix="$ROOTFS"
 	make -j"$NPROC"
 	make install
-	unset CC
 	cd -
 }
 
@@ -181,11 +158,9 @@ prepareTexinfo() {
 	fetchSource "$TEXINFO_URL"
 	unpackSource "$TEXINFO_PKG"
 	cd "$BUILDS"/"$TEXINFO_VER"
-	export CC="$ROOTFS"/toolchain/usr/bin/gcc
 	./configure LDFLAGS="-static" --prefix="$ROOTFS"
 	make -j"$NPROC"
 	make install
-	unset CC
 	cd -
 }
 
@@ -231,11 +206,9 @@ prepareBison() {
 	fetchSource "$BISON_URL"
 	unpackSource "$BISON_PKG"
 	cd "$BUILDS"/"$BISON_VER"
-	export CC="$ROOTFS"/toolchain/usr/bin/gcc
 	./configure LDFLAGS="-static" --prefix="$ROOTFS"
 	make -j"$NPROC"
 	make install
-	unset CC
 	cd -
 }
 
@@ -246,11 +219,9 @@ prepareGzip() {
 	fetchSource "$GZIP_URL"
 	unpackSource "$GZIP_PKG"
 	cd "$BUILDS"/"$GZIP_VER"
-	export CC="$ROOTFS"/toolchain/usr/bin/gcc
 	./configure LDFLAGS="-static" --prefix="$ROOTFS"
 	make -j"$NPROC"
 	make install
-	unset CC
 	cd -
 }
 
@@ -261,11 +232,9 @@ preparem4() {
 	fetchSource "$M4_URL"
 	unpackSource "$M4_PKG"
 	cd "$BUILDS"/"$M4_VER"
-	export CC="$ROOTFS"/toolchain/usr/bin/gcc
 	./configure LDFLAGS="-static" --prefix="$ROOTFS"
 	make -j"$NPROC"
 	make install
-	unset CC
 	cd -
 }
 
@@ -276,7 +245,6 @@ preparePatchelf() {
 	cd patchelf
 	./bootstrap.sh
 	./configure \
-		CC="$ROOTFS"/toolchain/usr/bin/gcc \
 		LDFLAGS="-static" \
 		--prefix="$ROOTFS"
 	make -j"$NPROC"
@@ -294,7 +262,7 @@ preparePerl() {
 	./staticperl mkperl -v --strip ppi --incglob '*'
 	mv ./perl "$ROOTFS"/bin/.perl_unwrapped
 	# FIXME - can we produce a fully static binary and avoid the wrapper?
-	cat > "$ROOTFS"/bin/perl << EOW
+	cat >"$ROOTFS"/bin/perl <<EOW
 #!/bin/sh
 DIR=\$(cd -- "\${0%/*}" && pwd)
 LIB_DIR=\${DIR}/../toolchain/lib
@@ -312,11 +280,9 @@ prepareGperf() {
 	fetchSource "$GPERF_URL"
 	unpackSource "$GPERF_PKG"
 	cd "$BUILDS"/"$GPERF_VER"
-	export CC="$ROOTFS"/toolchain/usr/bin/gcc
 	./configure LDFLAGS="-static" --prefix="$ROOTFS"
 	make -j"$NPROC"
 	make install
-	unset CC
 	cd -
 }
 
@@ -327,11 +293,9 @@ prepareAutoconf() {
 	fetchSource "$AUTOCONF_URL"
 	unpackSource "$AUTOCONF_PKG"
 	cd "$BUILDS"/"$AUTOCONF_VER"
-	export CC="$ROOTFS"/toolchain/usr/bin/gcc
 	./configure LDFLAGS="-static" --prefix="$ROOTFS"
 	make -j"$NPROC"
 	make install
-	unset CC
 	cd -
 }
 
@@ -342,12 +306,22 @@ prepareXz() {
 	fetchSource "$XZ_URL"
 	unpackSource "$XZ_PKG"
 	cd "$BUILDS"/"$XZ_VER"
-	export CC="$ROOTFS"/toolchain/usr/bin/gcc
 	./configure LDFLAGS="-static" --prefix="$ROOTFS"
 	make -j"$NPROC"
 	make install
-	unset CC
 	cd -
+}
+
+prepareFlex() {
+	oushd "$BUILDS"
+	git clone https://github.com/westes/flex.git
+	pushd "$BUILDS"/flex
+	./autogen.sh
+	ac_cv_func_malloc_0_nonnull=yes ac_cv_func_realloc_0_nonnull=yes ./configure --disable-shared --enable-static --prefix="$ROOTFS"
+	make -j"$NPROC"
+	make install
+	popd
+	popd
 }
 
 # python
@@ -359,14 +333,12 @@ preparePython() {
 	fetchSource "$PYTHON_URL"
 	unpackSource "$PYTHON_PKG"
 	cd "$BUILDS"/"$PYTHON_VER"
-	export CC="$ROOTFS"/toolchain/usr/bin/gcc
-	patch -ruN Modules/Setup < "$SHARED"/python-modules-setup.patch
-	./configure CFLAGS="-static" CPPFLAGS="-static" LDFLAGS="-static" --prefix="$ROOTFS"        \
-			--disable-shared      \
-			--enable-optimizations
+	patch -ruN Modules/Setup <"$SHARED"/python-modules-setup.patch
+	./configure CFLAGS="-static" CPPFLAGS="-static" LDFLAGS="-static" --prefix="$ROOTFS" \
+		--disable-shared \
+		--enable-optimizations
 	make CFLAGS="-static" CPPFLAGS="-static" LDFLAGS="-static" LINKFORSHARED=" " -j"$NPROC"
 	make install 2>/dev/null
-	unset CC
 	cd -
 }
 
@@ -382,7 +354,6 @@ fixSymlinks() {
 ### RUN
 
 prepareDir
-prepareToolchain
 prepareMake
 prepareToybox
 prepareCoreutils
@@ -399,6 +370,7 @@ prepareAutoconf
 preparePerl
 prepareTexinfo
 prepareXz
+# prepareFlex
 preparePatchelf
 fixSymlinks
 preparePython

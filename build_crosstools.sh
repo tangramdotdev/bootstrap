@@ -73,4 +73,5 @@ cp "$SHARED"/canadian-config .config
 ct-ng build
 cd -
 
+# for some reason, $TRIPLE/debug_root/usr/share needs to be removed.  Permission issue unpacking.
 tar -C "$HOME"/x-tools/HOST-aarch64-unknown-linux-gnu/aarch64-unknown-linux-gnu/ -cJf aarch64_cross_native_"$(date +"%Y%m%d")".tar.xz .

@@ -306,18 +306,33 @@ prepareXz() {
 	fetchSource "$XZ_URL"
 	unpackSource "$XZ_PKG"
 	cd "$BUILDS"/"$XZ_VER"
-	./configure LDFLAGS="-static" --prefix="$ROOTFS"
+	./configure \
+		LDFLAGS="--static" \
+		--prefix="$ROOTFS" \
+		--disable-debug \
+		--disable-dependency-tracking \
+		--disable-silent-rules \
+		--disable-shared \
+		--disable-nls
 	make -j"$NPROC"
 	make install
 	cd -
 }
 
+FLEX_VER="2.6.4"
+FLEX_PKG="flex-$FLEX_VER.tar.gz"
+FLEX_URL="https://github.com/westes/flex/releases/download/v$FLEX_VER/$FLEX_PKG"
 prepareFlex() {
-	oushd "$BUILDS"
-	git clone https://github.com/westes/flex.git
-	pushd "$BUILDS"/flex
-	./autogen.sh
-	ac_cv_func_malloc_0_nonnull=yes ac_cv_func_realloc_0_nonnull=yes ./configure --disable-shared --enable-static --prefix="$ROOTFS"
+	pushd "$BUILDS"
+	fetchSource "$FLEX_URL"
+	unpackSource "$FLEX_PKG"
+	pushd "$BUILDS"/"flez-$FLEX_VER"
+	# NOTE - needs to use --static, not just -static, or else libtool mode=link discards it (?!)
+	ac_cv_func_malloc_0_nonnull=yes ac_cv_func_realloc_0_nonnull=yes ./configure \
+		--disable-shared \
+		--enable-static \
+		LDFLAGS="--static" \
+		--prefix="$ROOTFS"
 	make -j"$NPROC"
 	make install
 	popd

@@ -3,7 +3,7 @@ set -euo pipefail
 log "Building expat (0.1 SBU | 12 MB)..."
 
 BUILD_LOGFILE=$LOGDIR/8.38-expat.log
-VERSION=2.4.8
+VERSION=2.4.9
 
 pushd /sources
 tar xf expat-"$VERSION".tar.xz

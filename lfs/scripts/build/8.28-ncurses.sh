@@ -20,7 +20,7 @@ pushd ncurses-"$VERSION"
 make -j"$(nproc)" | tee -a "$BUILD_LOGFILE"
 make DESTDIR="$PWD"/dest install | tee -a "$BUILD_LOGFILE"
 install -vm755 dest/usr/lib/libncursesw.so."$VERSION" /usr/lib | tee -a "$BUILD_LOGFILE"
-rm -v dest/usr/lib/{libncursesw.so."$VERSION",libncurses++w.a} | tee -a "$BUILD_LOGFILE"
+rm -v dest/usr/lib/libncursesw.so."$VERSION" | tee -a "$BUILD_LOGFILE"
 cp -av dest/* / | tee -a "$BUILD_LOGFILE"
 for lib in ncurses form panel menu; do
     rm -vf /usr/lib/lib${lib}.so | tee -a "$BUILD_LOGFILE"

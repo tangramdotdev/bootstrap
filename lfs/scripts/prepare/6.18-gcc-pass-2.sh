@@ -27,6 +27,7 @@ mkdir -pv "$LFS_TGT"/libgcc
 ../configure \
   --build="$(../config.guess)" \
   --host="$LFS_TGT" \
+  --target="$LFS_TGT" \
   --prefix=/usr \
   LDFLAGS_FOR_TARGET=-L"$PWD/$LFS_TGT"/libgcc \
   --with-build-sysroot="$LFS" \

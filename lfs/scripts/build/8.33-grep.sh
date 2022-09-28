@@ -3,7 +3,7 @@ set -euo pipefail
 log "Building grep (0.8 SBU | 37 MB)..."
 
 BUILD_LOGFILE=$LOGDIR/8.33-grep.log
-VERSION="3.7"
+VERSION=3.7
 
 pushd /sources
 tar xf grep-"$VERSION".tar.xz

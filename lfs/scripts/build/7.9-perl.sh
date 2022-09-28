@@ -3,7 +3,7 @@ set -euo pipefail
 log "Building perl (1.6 SBU | 222 MB)..."
 
 BUILD_LOGFILE=$LOGDIR/7.9-perl.log
-VERSION5.36.0
+VERSION=5.36.0
 
 pushd /sources
 tar xf perl-"$VERSION".tar.xz

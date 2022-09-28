@@ -3,7 +3,7 @@ set -euo pipefail
 log "Building gdbm (0.1 SBU | 13 MB)..."
 
 BUILD_LOGFILE=$LOGDIR/8.36-gdbm.log
-VERSION=81.23
+VERSION=1.23
 
 pushd /sources
 tar xf gdbm-"$VERSION".tar.gz

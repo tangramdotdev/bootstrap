@@ -6,7 +6,7 @@ BUILD_LOGFILE=$LOGDIR/8.42-xml_parser.log
 VERSION=2.46
 
 pushd /sources
-tar xf XML-Parser"$VERSION".tar.gz
+tar xf XML-Parser-"$VERSION".tar.gz
 pushd XML-Parser-"$VERSION"
 perl Makefile.PL | tee -a "$BUILD_LOGFILE"
 make -j"$(nproc)" | tee -a "$BUILD_LOGFILE"

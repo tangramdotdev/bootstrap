@@ -122,7 +122,7 @@ prepareFindutils() {
 }
 
 # gawk
-GAWK_VER="gawk-5.1.1"
+GAWK_VER="gawk-5.2.0"
 GAWK_PKG="$GAWK_VER.tar.xz"
 GAWK_URL="https://ftp.gnu.org/gnu/gawk/$GAWK_PKG"
 prepareGawk() {
@@ -137,7 +137,7 @@ prepareGawk() {
 }
 
 # grep
-GREP_VER="grep-3.7"
+GREP_VER="grep-3.8"
 GREP_PKG="$GREP_VER.tar.xz"
 GREP_URL="https://ftp.gnu.org/gnu/grep/$GREP_PKG"
 prepareGrep() {
@@ -164,38 +164,23 @@ prepareTexinfo() {
 	cd -
 }
 
-# # linux-headers
-# LINUX_VER="5.18.4"
-# LINUX="linux-$LINUX_VER"
-# LINUX_PKG="$LINUX.tar.xz"
-# LINUX_URL="https://cdn.kernel.org/pub/linux/kernel/v5.x/$LINUX_PKG"
-# LINUX_HEADER_PREFIX="$ROOTFS/include/linux"
-# prepareLinuxHeaders() {
-#     fetchSource "$LINUX_URL" "$LINUX_PKG"
-#     unpackSource "$LINUX_PKG"
-# 	cd "$BUILDS"/"$LINUX"
-# 	make mrproper
-# 	make headers
-# 	mkdir -p "$LINUX_HEADER_PREFIX"
-# 	cp -r usr/include "$LINUX_HEADER_PREFIX"
-# 	find "$LINUX_HEADER_PREFIX" -type f ! -name '*.h' -delete
-# 	mkdir -p "$LINUX_HEADER_PREFIX"/include/config
-# 	echo "$LINUX_VER"-default > "$LINUX_HEADER_PREFIX"/include/config/kernel.release
-# 	cd -
-# }
-if [ "$ARCH" = "aarch64" ]; then
-	LINUX_HEADERS="linux-headers-prebuild-aarch64-linux"
-else
-	LINUX_HEADERS="linux-headers-prebuild-amd64-linux"
-fi
-LINUX_HEADERS_PKG="$LINUX_HEADERS.tar.xz"
-LINUX_HEADERS_URL="https://github.com/tangramdotdev/bootstrap/releases/download/v0.0.0/$LINUX_HEADERS_PKG"
-LINUX_HEADER_PREFIX="$ROOTFS/include/linux"
+# linux-headers
+LINUX_VER="5.19.12"
+LINUX="linux-$LINUX_VER"
+LINUX_PKG="$LINUX.tar.xz"
+LINUX_URL="https://cdn.kernel.org/pub/linux/kernel/v5.x/$LINUX_PKG"
 prepareLinuxHeaders() {
-	fetchSource "$LINUX_HEADERS_URL"
-	unpackSource "$LINUX_HEADERS_PKG"
-	mkdir -p "$LINUX_HEADER_PREFIX"
-	mv "$BUILDS"/include "$LINUX_HEADER_PREFIX"
+	fetchSource "$LINUX_URL"
+	unpackSource "$LINUX_PKG"
+	cd "$BUILDS"/"$LINUX"
+	# NOTE - fails!
+	# make mrproper
+	make headers
+	find usr/include -type f ! -name '*.h' -delete
+	cp -r usr/include "$ROOTFS"
+	mkdir -p "$ROOTFS"/include/config
+	echo "$LINUX_VER"-default >"$ROOTFS"/include/config/kernel.release
+	cd -
 }
 
 # bison
@@ -320,11 +305,11 @@ prepareXz() {
 }
 
 BZIP2_VER="bzip2-1.0.8"
-BZIP2_PKG="$BZIP2.tar.gz"
+BZIP2_PKG="$BZIP2_VER.tar.gz"
 BZIP2_URL="https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz"
 prepareBzip() {
 	fetchSource "$BZIP2_URL"
-	unpackSouurce "$BZIP2_PKG"
+	unpackSource "$BZIP2_PKG"
 	cd "$BUILDS"/"$BZIP2_VER"
 	patch -u Makefile -i "$SHARED"/bzip2_static.patch
 	make -j"$NPROC"
@@ -370,15 +355,6 @@ preparePython() {
 	cd -
 }
 
-fixSymlinks() {
-	# the ld-linux symlink is absolute.  Point to libc in current dir by relative path instead.
-	cd "$ROOTFS"/toolchain/lib
-	interp="ld-musl-$ARCH.so.1"
-	rm "$interp"
-	ln -s ./libc.so "$interp"
-	cd -
-}
-
 ### RUN
 
 prepareDir
@@ -401,5 +377,4 @@ prepareXz
 prepareBzip
 prepareFlex
 preparePatchelf
-fixSymlinks
 preparePython

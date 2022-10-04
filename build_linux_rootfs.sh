@@ -321,10 +321,9 @@ FLEX_VER="2.6.4"
 FLEX_PKG="flex-$FLEX_VER.tar.gz"
 FLEX_URL="https://github.com/westes/flex/releases/download/v$FLEX_VER/$FLEX_PKG"
 prepareFlex() {
-	pushd "$BUILDS"
 	fetchSource "$FLEX_URL"
 	unpackSource "$FLEX_PKG"
-	pushd "$BUILDS"/"flez-$FLEX_VER"
+	cd "$BUILDS"/"flex-$FLEX_VER"
 	# NOTE - needs to use --static, not just -static, or else libtool mode=link discards it (?!)
 	ac_cv_func_malloc_0_nonnull=yes ac_cv_func_realloc_0_nonnull=yes ./configure \
 		--disable-shared \
@@ -333,8 +332,7 @@ prepareFlex() {
 		--prefix="$ROOTFS"
 	make -j"$NPROC"
 	make install
-	popd
-	popd
+	cd -
 }
 
 # python

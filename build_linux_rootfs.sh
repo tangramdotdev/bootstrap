@@ -2,7 +2,7 @@
 # This script creates a musl-based bootstrap toolchain.  Intended to run on Alpine Linux.
 
 ### SETUP
-apk add alpine-sdk autoconf automake bash bison file flex gawk gettext-dev git indent m4 libbz2 libtool ncurses-dev wget xz zlib
+apk add alpine-sdk autoconf automake bash bison file flex gawk gettext-tiny git indent m4 libbz2 libtool ncurses ncurses-dev openssl-dev wget xz zlib
 
 # Run remainder of script in actual bash.
 bash
@@ -304,19 +304,6 @@ prepareXz() {
 	cd -
 }
 
-BZIP2_VER="bzip2-1.0.8"
-BZIP2_PKG="$BZIP2_VER.tar.gz"
-BZIP2_URL="https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz"
-prepareBzip() {
-	fetchSource "$BZIP2_URL"
-	unpackSource "$BZIP2_PKG"
-	cd "$BUILDS"/"$BZIP2_VER"
-	patch -u Makefile -i "$SHARED"/bzip2_static.patch
-	make -j"$NPROC"
-	make install PREFIX="$ROOTFS"
-	cd -
-}
-
 FLEX_VER="2.6.4"
 FLEX_PKG="flex-$FLEX_VER.tar.gz"
 FLEX_URL="https://github.com/westes/flex/releases/download/v$FLEX_VER/$FLEX_PKG"
@@ -372,7 +359,6 @@ prepareAutoconf
 preparePerl
 prepareTexinfo
 prepareXz
-prepareBzip
 prepareFlex
 preparePatchelf
 preparePython

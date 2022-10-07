@@ -2,6 +2,7 @@
 **/*.tar.*
 /*bootstrap/
 /chroot/
+/lab/
 **/.DS_Store
 /.vscode/
 /stash

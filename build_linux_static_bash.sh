@@ -2,7 +2,7 @@
 # This script builds a statically-linked bash executable.
 # docker run --rm --platform linux/arm64/v8 --name "aarch64-static-bash" -v "$PWD":/bootstrap ubuntu /bin/bash /bootstrap/build_linux_static_bash.sh
 # docker run --rm --platform linux/amd64 --name "x86-64-static-bash" -v "$PWD":/bootstrap ubuntu /bin/bash /bootstrap/build_linux_static_bash.sh
-set -euxo pipefail
+set -x
 
 apt-get update
 apt-get upgrade -y
@@ -21,11 +21,11 @@ mkdir -p "$SOURCES"
 
 # download a tarball
 fetchSource() {
-    if [ ! -f "$SOURCES"/"$2" ]; then
-	cd "$SOURCES"
-	wget "$1"
-	cd -
-    fi
+	if [ ! -f "$SOURCES"/"$2" ]; then
+		cd "$SOURCES"
+		wget "$1"
+		cd -
+  fi
 }
 
 # grab musl toolchain
@@ -35,12 +35,12 @@ MUSL_URL=https://musl.cc/"$MUSL_PKG"
 prepareToolchain() {
     fetchSource "$MUSL_URL" "$MUSL_PKG"
     cd "$TOP"
-    tar xf "$SOURCES"/"$MUSL_PKG"
+    tar -xf "$SOURCES"/"$MUSL_PKG"
     mv "$MUSL" toolchain
     cd -
 }
 
-BASH_VER="bash-5.1"
+BASH_VER="bash-5.1.16"
 BASH_PKG="$BASH_VER.tar.gz"
 BASH_URL="https://ftp.gnu.org/gnu/bash/$BASH_PKG"
 prepareBash() {

@@ -7,6 +7,8 @@
 /.vscode/
 /stash
 /sources
+/work
+/dist
 **/arm64*
 **/amd64*
 **/aarch64*

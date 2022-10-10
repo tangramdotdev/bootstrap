@@ -10,14 +10,14 @@ set -euxo pipefail
 
 NPROC=$(nproc)
 ARCH=$(uname -m)
-SHARED="/bootstrap"
-TOP="$SHARED/$ARCH"
-SOURCES="$SHARED/sources"
+VOLMOUNT="/bootstrap"
+TOP="$VOLMOUNT/$ARCH"
+SOURCES="$VOLMOUNT/sources"
 BUILDS="$TOP/builds"
 ROOTFS="$TOP/rootfs"
 
 # move into the shared dir.
-cd "$SHARED"
+cd "$VOLMOUNT"
 
 prepareDir() {
 	mkdir -p "$SOURCES" # this should already be mounted in
@@ -331,11 +331,11 @@ preparePython() {
 	fetchSource "$PYTHON_URL"
 	unpackSource "$PYTHON_PKG"
 	cd "$BUILDS"/"$PYTHON_VER"
-	patch -ruN Modules/Setup <"$SHARED"/python-modules-setup.patch
+	patch -ruN Modules/Setup <"$VOLMOUNT"/python-modules-setup.patch
 	./configure CFLAGS="-static" CPPFLAGS="-static" LDFLAGS="-static" --prefix="$ROOTFS" \
 		--disable-shared \
 		--enable-optimizations
-	make CFLAGS="-static" CPPFLAGS="-static" LDFLAGS="-static" LINKFORSHARED=" " -j"$NPROC"
+	make CFLAGS="-static" CPPFLAGS="-static" LDFLAGS="-static" LINKFORVOLMOUNT=" " -j"$NPROC"
 	make install 2>/dev/null
 	cd -
 }

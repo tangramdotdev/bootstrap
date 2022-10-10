@@ -65,13 +65,16 @@ cd "$HOME"/work
 
 # first, build simple cross, build & host = musl, target = gnu
 ct-ng aarch64-unknown-linux-gnu
-# CP "$SHARED"/cross-config .config
+# CP "$VOLMOUNT"/cross-config .config
 ct-ng build
 # then, use that to build trivial case of canadian cross, build = musl, host & target = musl
 PATH=~/x-tools/aarch64-unknown-linux-gnu/bin:$PATH
-cp "$SHARED"/canadian-config .config
+cp "$VOLMOUNT"/canadian-config .config
 ct-ng build
 cd -
+
+# first, build cross musl -> gnu
+# then, build native using aboce toolchain.
 
 # for some reason, $TRIPLE/debug_root/usr/share needs to be removed.  Permission issue unpacking.
 tar -C "$HOME"/x-tools/HOST-aarch64-unknown-linux-gnu/aarch64-unknown-linux-gnu/ -cJf aarch64_cross_native_"$(date +"%Y%m%d")".tar.xz .

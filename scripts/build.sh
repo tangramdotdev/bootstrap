@@ -2,7 +2,7 @@
 # This is the top-level driver script for producing all platform bootstrap bundles.
 set -euxo pipefail
 DATE=$(date +"%Y%m%d")
-SHARED="/bootstrap"
+VOLMOUNT="/bootstrap"
 SCRIPT="build_linux_rootfs.sh"
 IMAGE="alpine:3.16.2"
 
@@ -11,7 +11,7 @@ IMAGE="alpine:3.16.2"
 
 # aarch64-linux
 {
-  docker run --rm --platform linux/arm64/v8 --name "aarch64-bootstrap" -v "$PWD":"$SHARED" "$IMAGE" /bin/sh "$SHARED"/"$SCRIPT" &>"$PWD"/aarch64_linux.log
+  docker run --rm --platform linux/arm64/v8 --name "aarch64-bootstrap" -v "$PWD":"$VOLMOUNT" "$IMAGE" /bin/sh "$VOLMOUNT"/"$SCRIPT" &>"$PWD"/aarch64_linux.log
   echo "Built aarch64" &&
     tar -C aarch64/rootfs -cJf bootstrap_linux_aarch64_"$DATE".tar.xz . &&
     echo "Compressed aarch64" &&
@@ -20,7 +20,7 @@ IMAGE="alpine:3.16.2"
 
 # x86_64-linux
 {
-  docker run --rm --platform linux/amd64 --name "x86_64-bootstrap" -v "$PWD":"$SHARED" "$IMAGE" /bin/sh "$SHARED"/"$SCRIPT" &>"$PWD"/x86_64_linux.log
+  docker run --rm --platform linux/amd64 --name "x86_64-bootstrap" -v "$PWD":"$VOLMOUNT" "$IMAGE" /bin/sh "$VOLMOUNT"/"$SCRIPT" &>"$PWD"/x86_64_linux.log
   echo "Built x86_64" &&
     tar -C x86_64/rootfs -cJf bootstrap_linux_x86_64_"$DATE".tar.xz . &&
     echo "Compressed x86_64" &&

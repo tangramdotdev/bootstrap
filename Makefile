@@ -171,12 +171,12 @@ $(DIST)/toybox_linux_x86_64_$(DATE).tar.xz: $(WORK)/toybox_linux_x86_64
 $(DIST)/toybox_macos_universal_$(DATE).tar.xz: $(WORK)/toybox_macos_universal
 	$(SCRIPTS)/build_binary_artifact.sh $< $@ toybox
 
-$(WORK)/toybox_linux_aarch64:
-	wget -O $@ http://landley.net/toybox/downloads/binaries/0.8.8/toybox-aarch64 && \
+$(WORK)/toybox_linux_aarch64: $(SOURCES)/toybox-aarch64
+	cp $< $@ && \
 	chmod +x $@
 
-$(WORK)/toybox_linux_x86_64:
-	wget -O $@ http://landley.net/toybox/downloads/binaries/0.8.8/toybox-x86_64 && \
+$(WORK)/toybox_linux_x86_64: $(SOURCES)/toybox-x86_64
+	cp $< $@ && \
 	chmod +x $@
 
 $(WORK)/toybox_macos_universal: $(WORK)/toybox_macos_arm $(WORK)/toybox_macos_x86
@@ -221,3 +221,9 @@ $(SOURCES)/toybox-$(TOYBOX_VER).tar.gz:
 $(WORK)/toybox-$(TOYBOX_VER): $(SOURCES)/toybox-$(TOYBOX_VER).tar.gz
 	cd $(WORK) && \
 	tar -xf $<
+
+$(SOURCES)/toybox-aarch64:
+	wget -O $@ http://landley.net/toybox/downloads/binaries/$(TOYBOX_VER)/toybox-aarch64
+
+$(SOURCES)/toybox-x86_64:
+	wget -O $@ http://landley.net/toybox/downloads/binaries/$(TOYBOX_VER)/toybox-x86_64

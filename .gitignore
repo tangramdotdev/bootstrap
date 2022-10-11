@@ -1,27 +1,13 @@
 **/*.log
 **/*.tar.*
-/*bootstrap/
-/chroot/
-/lab/
 **/.DS_Store
 /.vscode/
 /stash
 /sources
 /work
 /dist
-**/arm64*
-**/amd64*
-**/aarch64*
-**/x86_64*
-/alpine-ctng
-/linux_bash
-bash
-/macos_toybox
-toybox_macos_universal
 /lfs/sources
 /lfs/sdk
 /lfs/toolchain
 /lfs/tools
 /lfs/lfs*
-# macos
-**/.DS_STORE

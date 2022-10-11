@@ -236,27 +236,37 @@ preparePatchelf() {
 	make install
 }
 
-# perl
+# staticperl
 preparePerl() {
 	mkdir -p "$BUILDS"/staticperl
 	cd "$BUILDS"/staticperl
 	wget https://fastapi.metacpan.org/source/MLEHMANN/App-Staticperl-1.46/bin/staticperl
 	chmod +x ./staticperl
 	./staticperl install
-	# FIXME - deteermine more minimal module set and configure here to save considerable build time and bundle size.
-	./staticperl mkperl -v --strip ppi --incglob '*'
-	mv ./perl "$ROOTFS"/bin/.perl_unwrapped
-	# FIXME - can we produce a fully static binary and avoid the wrapper?
-	cat >"$ROOTFS"/bin/perl <<EOW
-#!/bin/sh
-DIR=\$(cd -- "\${0%/*}" && pwd)
-LIB_DIR=\${DIR}/../toolchain/lib
-INTERPRETER=\${LIB_DIR}/ld-musl-$ARCH.so.1
-\${INTERPRETER} --preload \${LIB_DIR}/libc.so -- \${DIR}/.perl_unwrapped "\$@"
-EOW
-	chmod +x "$ROOTFS"/bin/perl
+	# FIXME - determine more minimal module set and configure here to save considerable build time and bundle size.
+	./staticperl mkperl -v --strip ppi --incglob '*' --static
+	strip ./perl
+	mv ./perl "$ROOTFS"/bin/perl
 	cd -
 }
+
+# # perl
+# PERL_VER="perl-5.36.0"
+# PERL_PKG="$PERL_VER.tar.gz"
+# PERL_URL="https://www.cpan.org/src/5.0/$PERL_PKG"
+# preparePerlOfficial() {
+# 	fetchSource "$PERL_URL"
+# 	unpackSource "$PERL_PKG"
+# 	cd "$BUILDS"/"$PERL_VER"
+# 	patch -Np1 < "$PATCHES"/perl_musl-locale.patch
+# 	patch -Np1 < "$PATCHES"/perl_musl-skip-dst-test.patch
+# 	sh Configure -des \
+# 		-Dprefix="$ROOTFS" \
+# 		-Duserelocatableinc
+# 	make -j"$NPROC"
+# 	make install
+# 	cd -
+# }
 
 GPERF_VER="gperf-3.1"
 GPERF_PKG="$GPERF_VER.tar.gz"
@@ -340,6 +350,30 @@ preparePython() {
 	cd -
 }
 
+wrapPerlScript() {
+	mv "$1" ".$1"
+	cat > "$1" << EOW
+#!/bin/sh
+DIR=$(cd -- "${0%/*}" && pwd)
+PERL="$DIR"/perl
+"$PERL" ".$1" -- "$@"
+EOW
+	chmod +x "$1"
+}
+
+wrapPerlScripts() {
+	cd "$ROOTFS"/bin
+	wrapPerlScript autoscan
+	wrapPerlScript autoreconf
+	wrapPerlScript autoheader
+	wrapPerlScript texi2any
+	wrapPerlScript ifnames
+	wrapPerlScript autoupdate
+	wrapPerlScript pod2texi
+	wrapPerlScript autom4te
+	cd -
+}
+
 ### RUN
 
 prepareDir
@@ -361,4 +395,5 @@ prepareTexinfo
 prepareXz
 prepareFlex
 preparePatchelf
+wrapPerlScripts
 preparePython

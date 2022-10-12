@@ -294,6 +294,19 @@ prepareAutoconf() {
 	cd -
 }
 
+AUTOMAKE_VER="automake-1.16.5"
+AUTOMAKE_PKG="$AUTOMAKE_VER.tar.xz"
+AUTOMAKE_URL="https://ftp.gnu.org/gnu/automake/$AUTOMAKE_PKG"
+prepareAutomake() {
+	fetchSource "$AUTOMAKE_URL"
+	unpackSource "$AUTOMAKE_PKG"
+	cd "$BUILDS"/"$AUTOMAKE_VER"
+	./configure LDFLAGS="-static" --prefix="$ROOTFS"
+	make -j"$NPROC"
+	make install
+	cd -
+}
+
 XZ_VER="xz-5.2.6"
 XZ_PKG="$XZ_VER.tar.xz"
 XZ_URL="https://tukaani.org/xz/$XZ_PKG"
@@ -371,6 +384,8 @@ wrapPerlScripts() {
 	wrapPerlScript autoupdate
 	wrapPerlScript pod2texi
 	wrapPerlScript autom4te
+	wrapPerlScript auutomake
+	wrapPerlScript aclocal
 	cd -
 }
 
@@ -390,6 +405,7 @@ prepareGzip
 preparem4
 prepareGperf
 prepareAutoconf
+prepareAutomake
 preparePerl
 prepareTexinfo
 prepareXz

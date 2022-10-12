@@ -384,7 +384,7 @@ wrapPerlScripts() {
 	wrapPerlScript autoupdate
 	wrapPerlScript pod2texi
 	wrapPerlScript autom4te
-	wrapPerlScript auutomake
+	wrapPerlScript automake
 	wrapPerlScript aclocal
 	cd -
 }

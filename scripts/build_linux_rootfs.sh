@@ -6,12 +6,14 @@ apk add alpine-sdk autoconf automake bash bison file flex gawk gettext-tiny git 
 
 # Run remainder of script in actual bash.
 bash
-set -euxo pipefail
+set -x
 
 NPROC=$(nproc)
 ARCH=$(uname -m)
 VOLMOUNT="/bootstrap"
-TOP="$VOLMOUNT/$ARCH"
+WORK="$VOLMOUNT/work"
+TOP="$WORK/$ARCH"
+PATCHES="$VOLMOUNT/patches"
 SOURCES="$VOLMOUNT/sources"
 BUILDS="$TOP/builds"
 ROOTFS="$TOP/rootfs"
@@ -165,10 +167,10 @@ prepareTexinfo() {
 }
 
 # linux-headers
-LINUX_VER="5.19.12"
+LINUX_VER="6.0.1"
 LINUX="linux-$LINUX_VER"
 LINUX_PKG="$LINUX.tar.xz"
-LINUX_URL="https://cdn.kernel.org/pub/linux/kernel/v5.x/$LINUX_PKG"
+LINUX_URL="https://cdn.kernel.org/pub/linux/kernel/v6.x/$LINUX_PKG"
 prepareLinuxHeaders() {
 	fetchSource "$LINUX_URL"
 	unpackSource "$LINUX_PKG"
@@ -346,7 +348,7 @@ prepareFlex() {
 }
 
 # python
-PYVER="3.10.7"
+PYVER="3.10.8"
 PYTHON_VER="Python-$PYVER"
 PYTHON_PKG="$PYTHON_VER.tar.xz"
 PYTHON_URL=https://www.python.org/ftp/python/"$PYVER"/"$PYTHON_PKG"
@@ -354,7 +356,7 @@ preparePython() {
 	fetchSource "$PYTHON_URL"
 	unpackSource "$PYTHON_PKG"
 	cd "$BUILDS"/"$PYTHON_VER"
-	patch -ruN Modules/Setup <"$VOLMOUNT"/python-modules-setup.patch
+	patch -ruN Modules/Setup <"$PATCHES"/python-modules-setup.patch
 	./configure CFLAGS="-static" CPPFLAGS="-static" LDFLAGS="-static" --prefix="$ROOTFS" \
 		--disable-shared \
 		--enable-optimizations

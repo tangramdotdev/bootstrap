@@ -236,6 +236,7 @@ preparePatchelf() {
 		--prefix="$ROOTFS"
 	make -j"$NPROC"
 	make install
+	cd -
 }
 
 # staticperl

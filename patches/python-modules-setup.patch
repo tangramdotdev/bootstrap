@@ -1,6 +1,6 @@
 --- Modules/Setup
 +++ Modules/Setup_patched
-@@ -166,26 +166,26 @@
+@@ -166,45 +166,45 @@
  
  # Modules that should always be present (non UNIX dependent):
  
@@ -44,6 +44,32 @@
  
  
  # Modules with some UNIX dependencies -- on by default:
+ # (If you have a really backward UNIX, select and socket may not be
+ # supported...)
+ 
+-#fcntl fcntlmodule.c	# fcntl(2) and ioctl(2)
+-#spwd spwdmodule.c		# spwd(3)
+-#grp grpmodule.c		# grp(3)
+-#select selectmodule.c	# select(2); not on ancient System V
++fcntl fcntlmodule.c	# fcntl(2) and ioctl(2)
++spwd spwdmodule.c		# spwd(3)
++grp grpmodule.c		# grp(3)
++select selectmodule.c	# select(2); not on ancient System V
+ 
+ # Memory-mapped files (also works on Win32).
+-#mmap mmapmodule.c
++mmap mmapmodule.c
+ 
+ # CSV file helper
+-#_csv _csv.c
++_csv _csv.c
+ 
+ # Socket module helper for socket(2)
+-#_socket socketmodule.c
++_socket socketmodule.c
+ 
+ # Socket module helper for SSL support; you must comment out the other
+ # socket line above, and edit the OPENSSL variable:
 @@ -238,7 +238,7 @@
  #termios termios.c	# Steen Lumholt's termios module
  #resource resource.c	# Jeremy Hylton's rlimit interface
@@ -53,17 +79,31 @@
  
  # Multimedia modules -- off by default.
  # These don't work for 64-bit platforms!!!
-@@ -260,8 +260,8 @@
+@@ -254,18 +254,18 @@
+ # The _md5 module implements the RSA Data Security, Inc. MD5
+ # Message-Digest Algorithm, described in RFC 1321.
+ 
+-#_md5 md5module.c
++_md5 md5module.c
+ 
+ 
  # The _sha module implements the SHA checksum algorithms.
  # (NIST's Secure Hash Algorithms.)
- #_sha1 sha1module.c
+-#_sha1 sha1module.c
 -#_sha256 sha256module.c -DPy_BUILD_CORE_BUILTIN
 -#_sha512 sha512module.c -DPy_BUILD_CORE_BUILTIN
+-#_sha3 _sha3/sha3module.c
++_sha1 sha1module.c
 +_sha256 sha256module.c -DPy_BUILD_CORE_BUILTIN
 +_sha512 sha512module.c -DPy_BUILD_CORE_BUILTIN
- #_sha3 _sha3/sha3module.c
++_sha3 _sha3/sha3module.c
  
  # _blake module
+-#_blake2 _blake2/blake2module.c _blake2/blake2b_impl.c _blake2/blake2s_impl.c
++_blake2 _blake2/blake2module.c _blake2/blake2b_impl.c _blake2/blake2s_impl.c
+ 
+ # The _tkinter module.
+ #
 @@ -338,7 +338,7 @@
  
  

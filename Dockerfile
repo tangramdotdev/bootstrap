@@ -1,7 +1,7 @@
 # Run `. /envfile` upon entering.
 FROM alpine:3.16.2
 RUN apk update
-RUN apk add alpine-sdk autoconf automake bash bison file flex gawk gettext-tiny git indent m4 libbz2 libtool ncurses ncurses-dev openssl-dev wget xz zlib-dev zlib-static
+RUN apk add alpine-sdk autoconf automake bash binutils bison file flex gawk gettext-tiny git indent m4 libbz2 libtool linux-headers ncurses ncurses-dev openssl-dev wget xz zlib-dev zlib-static
 RUN echo 'export NPROC=$(nproc)' >> /envfile
 RUN echo 'export ARCH=$(uname -m)' >> /envfile
 RUN echo 'export VOLMOUNT=/bootstrap' >> /envfile

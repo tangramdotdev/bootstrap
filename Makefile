@@ -86,9 +86,8 @@ image_arm64:
 
 # Static tools
 
-# FIXME - add amd64
 .PHONY: static_tools
-static_tools: static_tools_arm64
+static_tools: static_tools_amd64 static_tools_arm64
 
 .PHONY: static_tools_amd64
 static_tools_amd64: $(STATIC_TOOLS:%=$(WORK)/x86_64/rootfs/bin/%)
@@ -135,9 +134,8 @@ linux_headers_amd64_dist: $(DIST)/linux_headers_$(LINUX_VER)_x86_64_$(DATE).tar.
 .PHONY: linux_headers_arm64_dist
 linux_headers_arm64_dist: $(DIST)/linux_headers_$(LINUX_VER)_aarch64_$(DATE).tar.xz
 
-# FIXME - add amd64
 .PHONY: static_tools_dist
-static_tools_dist: static_tools_arm64_dist
+static_tools_dist: static_tools_amd64 static_tools_arm64_dist
 
 .PHONY: static_tools_amd64_dist
 static_tools_amd64_dist: $(DIST)/static_tools_linux_x86_64_$(DATE).tar.xz 

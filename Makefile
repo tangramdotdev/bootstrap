@@ -34,10 +34,9 @@ GAWK_VER=5.2.0
 GPERF_VER=3.1
 GREP_VER=3.8
 GZIP_VER=1.12
-# TODO - Linux headers belongs in its own artifact, not in static_tools
-LINUX_VER=6.0.3
-MAKE_VER=4.3
+LINUX_VER=6.0.5
 M4_VER=1.4.19
+MAKE_VER=4.3
 PATCHELF_VER=0.15.0
 PYTHON_VER=3.11.0
 STATICPERL_VER=1.46
@@ -102,7 +101,6 @@ clean_static_tools:
 	rm -rfv $(WORK)/{aarch64,x86_64}
 
 # Toybox
-## TODO - add static_tools version, with installed symlinks
 
 .PHONY: toybox
 toybox: toybox_linux_amd64 toybox_linux_arm64 toybox_macos
@@ -127,6 +125,15 @@ bash_dist: $(DIST)/bash_linux_aarch64_$(DATE).tar.xz $(DIST)/bash_linux_x86_64_$
 
 .PHONY: musl_toolchain_dist
 musl_toolchain_dist: $(DIST)/musl_toolchain_linux_aarch64_$(DATE).tar.xz $(DIST)/musl_toolchain_linux_x86_64_$(DATE).tar.xz
+
+.PHONY: linux_headers_dist
+linux_headers_dist: linux_headers_amd64_dist linux_headers_arm64_dist
+
+.PHONY: linux_headers_amd64_dist
+linux_headers_amd64_dist: $(DIST)/linux_headers_$(LINUX_VER)_x86_64_$(DATE).tar.xz
+
+.PHONY: linux_headers_arm64_dist
+linux_headers_arm64_dist: $(DIST)/linux_headers_$(LINUX_VER)_aarch64_$(DATE).tar.xz
 
 # FIXME - add amd64
 .PHONY: static_tools_dist
@@ -300,6 +307,21 @@ gzip_linux_arm64: $(WORK)/aarch64/rootfs/bin/gzip
 clean_gzip:
 	rm -rfv $(WORK)/gzip* $(WORK)/aarch64/rootfs/bin/gzip $(WORK)/x86_64/rootfs/bin/gzip
 
+## m4
+
+.PHONY: m4
+m4: m4_linux_amd64 m4_linux_arm64
+
+.PHONY: m4_linux_amd64
+m4_linux_amd64: $(WORK)/x86_64/rootfs/bin/m4
+
+.PHONY: m4_linux_arm64
+m4_linux_arm64: $(WORK)/aarch64/rootfs/bin/m4
+
+.PHONY: clean_m4
+clean_m4:
+	rm -rfv $(WORK)/m4* $(WORK)/aarch64/rootfs/bin/m4 $(WORK)/x86_64/rootfs/bin/m4
+
 ## make
 
 .PHONY: make
@@ -314,6 +336,21 @@ make_linux_arm64: $(WORK)/aarch64/rootfs/bin/make
 .PHONY: clean_make
 clean_make:
 	rm -rfv $(WORK)/make* $(WORK)/aarch64/rootfs/bin/make $(WORK)/x86_64/rootfs/bin/make
+
+## Linux headers
+
+.PHONY: linux_headers
+linux_headers: linux_headers_amd64 linux_headers_arm64
+
+.PHONY: linux_headers_amd64
+linux_headers_amd64: $(WORK)/x86_64/linux_headers
+
+.PHONY: linux_headers_arm64
+linux_headers_arm64: $(WORK)/aarch64/linux_headers
+
+.PHONY: clean_linux_headers
+clean_linux_headers:
+	rm -rfv $(WORK)/x86_64/linux* $(WORK)/aarch64/linux*
 
 ## patchelf
 
@@ -557,6 +594,17 @@ $(WORK)/musl_toolchain_linux_aarch64.tar.xz: $(SOURCES)/aarch64-linux-musl-nativ
 $(WORK)/musl_toolchain_linux_x86_64.tar.xz: $(SOURCES)/x86_64-linux-musl-native.tgz
 	$(SCRIPTS)/fix_musl_toolchain_symlink.sh $< $@ x86_64
 
+## Linux API Headers
+
+$(DIST)/linux_headers_$(LINUX_VER)_%_$(DATE).tar.xz: $(WORK)/%/linux_headers
+	tar -C $< -cJf $@ .
+
+$(WORK)/x86_64/linux_headers: $(WORK)/x86_64/linux-$(LINUX_VER)
+	$(SCRIPTS)/run_linux_build.sh $(OCI) amd64 build_linux_headers.sh $(LINUX_VER)	
+
+$(WORK)/aarch64/linux_headers: $(WORK)/aarch64/linux-$(LINUX_VER)
+	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_headers.sh $(LINUX_VER)	
+
 ## Toybox
 
 $(DIST)/toybox_linux_aarch64_$(DATE).tar.xz: $(WORK)/toybox_linux_aarch64
@@ -619,6 +667,16 @@ $(WORK)/%: $(SOURCES)/%.tar.xz
 	cd $(WORK) && \
 	tar -xf $<
 
+$(WORK)/x86_64/linux-$(LINUX_VER): $(SOURCES)/linux-$(LINUX_VER).tar.xz
+	mkdir -p $(WORK)/x86_64 && \
+	cd $(WORK)/x86_64 && \
+	tar -xf $<
+
+$(WORK)/aarch64/linux-$(LINUX_VER): $(SOURCES)/linux-$(LINUX_VER).tar.xz
+	mkdir -p $(WORK)/aarch64 && \
+	cd $(WORK)/aarch64 && \
+	tar -xf $<
+
 $(WORK)/staticperl: $(SOURCES)/staticperl
 	cp $< $@ && \
 	chmod +x $@
@@ -655,6 +713,9 @@ $(SOURCES)/grep-$(GREP_VER).tar.xz:
 
 $(SOURCES)/gzip-$(GZIP_VER).tar.xz:
 	wget -O $@ https://ftp.gnu.org/gnu/gzip/gzip-$(GZIP_VER).tar.xz
+
+$(SOURCES)/linux-$(LINUX_VER).tar.xz:
+	wget -O $@ https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-$(LINUX_VER).tar.xz
 
 $(SOURCES)/make-$(MAKE_VER).tar.lz:
 	wget -O $@ https://ftp.gnu.org/gnu/make/make-$(MAKE_VER).tar.lz

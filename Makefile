@@ -21,7 +21,7 @@ VOLMOUNT=/bootstrap
 # diff: diffutils
 # find: findutils
 # makeinfo: texinfo
-STATIC_TOOLS:=bash bison cp diff find flex gawk gperf grep gzip m4 make makeinfo patchelf perl python3 xz
+STATIC_TOOLS:=bash bison cp diff find flex gawk gperf grep gzip m4 make makeinfo patchelf perl python3 sed xz
 
 # Package versions
 BASH_VER=5.1.16
@@ -39,6 +39,7 @@ M4_VER=1.4.19
 MAKE_VER=4.3
 PATCHELF_VER=0.15.0
 PYTHON_VER=3.11.0
+SED_VER=4.8
 STATICPERL_VER=1.46
 TEXINFO_VER=6.8
 TOYBOX_VER=0.8.8
@@ -410,6 +411,21 @@ texinfo_linux_arm64: $(WORK)/aarch64/rootfs/bin/makeinfo
 clean_texinfo:
 	rm -rfv $(WORK)/texinfo* $(WORK)/aarch64/rootfs/bin/makeinfo $(WORK)/x86_64/rootfs/bin/makeinfo
 
+## sed
+
+.PHONY: sed
+sed: sed_linux_amd64 sed_linux_arm64
+
+.PHONY: sed_linux_amd64
+sed_linux_amd64: $(WORK)/x86_64/rootfs/bin/sed
+
+.PHONY: sed_linux_arm64
+sed_linux_arm64: $(WORK)/aarch64/rootfs/bin/sed
+
+.PHONY: clean_sed
+clean_sed:
+	rm -rfv $(WORK)/sed* $(WORK)/aarch64/rootfs/bin/sed $(WORK)/x86_64/rootfs/bin/sed
+
 ## xz
 
 .PHONY: xz
@@ -573,6 +589,14 @@ $(WORK)/x86_64/rootfs/bin/python3: $(WORK)/Python-$(PYTHON_VER)
 $(WORK)/aarch64/rootfs/bin/python3: $(WORK)/Python-$(PYTHON_VER)
 	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_static_python.sh $(PYTHON_VER)
 
+## sed
+
+$(WORK)/x86_64/rootfs/bin/sed: $(WORK)/sed-$(SED_VER)
+	$(SCRIPTS)/run_linux_build.sh $(OCI) amd64 build_linux_static_sed.sh $(SED_VER)
+
+$(WORK)/aarch64/rootfs/bin/sed: $(WORK)/sed-$(SED_VER)
+	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_static_sed.sh $(SED_VER)
+
 ## xz
 
 $(WORK)/x86_64/rootfs/bin/xz: $(WORK)/xz-$(XZ_VER)
@@ -735,6 +759,9 @@ $(WORK)/Python-$(PYTHON_VER): $(SOURCES)/Python-$(PYTHON_VER).tar.xz
 
 $(SOURCES)/texinfo-$(TEXINFO_VER).tar.xz:
 	wget -O $@ https://ftp.gnu.org/gnu/texinfo/texinfo-$(TEXINFO_VER).tar.xz
+
+$(SOURCES)/sed-$(SED_VER).tar.xz:
+	wget -O $@ https://ftp.gnu.org/gnu/sed/sed-$(SED_VER).tar.xz
 
 $(SOURCES)/xz-$(XZ_VER).tar.xz:
 	wget -O $@ https://tukaani.org/xz/xz-$(XZ_VER).tar.xz

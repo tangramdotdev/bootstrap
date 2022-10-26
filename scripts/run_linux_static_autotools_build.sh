@@ -11,5 +11,3 @@ cd "$TMP" || exit
 "$WORK"/"$pkg"/configure LDFLAGS="--static" --prefix="$ROOTFS" "$@"
 make -j"$NPROC"
 make install
-cd - || exit
-rm -rf "$TMP"

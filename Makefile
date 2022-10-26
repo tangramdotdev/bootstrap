@@ -21,7 +21,7 @@ VOLMOUNT=/bootstrap
 # diff: diffutils
 # find: findutils
 # makeinfo: texinfo
-STATIC_TOOLS:=bash bison cp diff find flex gawk gperf grep gzip m4 make makeinfo patchelf perl python3 sed xz
+STATIC_TOOLS:=bash bison cp diff find flex gawk gperf grep gzip m4 make makeinfo patchelf perl python3 sed tar xz
 
 # Package versions
 BASH_VER=5.1.16
@@ -41,6 +41,7 @@ PATCHELF_VER=0.15.0
 PYTHON_VER=3.11.0
 SED_VER=4.8
 STATICPERL_VER=1.46
+TAR_VER=1.34
 TEXINFO_VER=6.8
 TOYBOX_VER=0.8.8
 XZ_VER=5.2.6
@@ -426,6 +427,21 @@ sed_linux_arm64: $(WORK)/aarch64/rootfs/bin/sed
 clean_sed:
 	rm -rfv $(WORK)/sed* $(WORK)/aarch64/rootfs/bin/sed $(WORK)/x86_64/rootfs/bin/sed
 
+## tar
+
+.PHONY: tar
+tar: tar_linux_amd64 tar_linux_arm64
+
+.PHONY: tar_linux_amd64
+tar_linux_amd64: $(WORK)/x86_64/rootfs/bin/tar
+
+.PHONY: tar_linux_arm64
+tar_linux_arm64: $(WORK)/aarch64/rootfs/bin/tar
+
+.PHONY: clean_tar
+clean_tar:
+	rm -rfv $(WORK)/tar* $(WORK)/aarch64/rootfs/bin/tar $(WORK)/x86_64/rootfs/bin/tar
+
 ## xz
 
 .PHONY: xz
@@ -597,6 +613,14 @@ $(WORK)/x86_64/rootfs/bin/sed: $(WORK)/sed-$(SED_VER)
 $(WORK)/aarch64/rootfs/bin/sed: $(WORK)/sed-$(SED_VER)
 	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_static_sed.sh $(SED_VER)
 
+## tar
+
+$(WORK)/x86_64/rootfs/bin/tar: $(WORK)/tar-$(TAR_VER)
+	$(SCRIPTS)/run_linux_build.sh $(OCI) amd64 build_linux_static_tar.sh $(TAR_VER)
+
+$(WORK)/aarch64/rootfs/bin/tar: $(WORK)/tar-$(TAR_VER)
+	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_static_tar.sh $(TAR_VER)
+
 ## xz
 
 $(WORK)/x86_64/rootfs/bin/xz: $(WORK)/xz-$(XZ_VER)
@@ -762,6 +786,9 @@ $(SOURCES)/texinfo-$(TEXINFO_VER).tar.xz:
 
 $(SOURCES)/sed-$(SED_VER).tar.xz:
 	wget -O $@ https://ftp.gnu.org/gnu/sed/sed-$(SED_VER).tar.xz
+
+$(SOURCES)/tar-$(TAR_VER).tar.xz:
+	wget -O $@ https://ftp.gnu.org/gnu/tar/tar-$(TAR_VER).tar.xz
 
 $(SOURCES)/xz-$(XZ_VER).tar.xz:
 	wget -O $@ https://tukaani.org/xz/xz-$(XZ_VER).tar.xz

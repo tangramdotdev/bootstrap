@@ -6,7 +6,7 @@ cmd=$1
 # arm64/amd64
 arch=$2
 script=$3
-version=${4:0.0.0}
+version=${4:=0.0.0}
 name=${script%.*}
 image="static-tools-${arch}"
 image_name="${arch}_${name}"

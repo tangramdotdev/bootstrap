@@ -2,7 +2,7 @@
 # This script builds a macos bash executable for the passed target.
 set -x
 TMP=$(mktemp -d)
-cd "$TMP"
+cd "$TMP" || exit
 "$1"/configure CFLAGS="-target $3"
 make -j"$(nproc)"
 strip bash

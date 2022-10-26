@@ -1,12 +1,6 @@
 #!/bin/bash
 # This script builds a statically-linked bash executable.
-set -x
+set -euo pipefail
 source /envfile
-bash=bash-"$1"
-TMP=$(mktemp -d)
-cd "$TMP"
-"$WORK"/"$bash"/configure CFLAGS=-"static -Os" --enable-static-link --without-bash-malloc
-make -j"$NPROC"
-strip bash
-cp bash "$WORK/bash_linux_$ARCH"
-rm -rf "$TMP"
+"$SCRIPTS"/run_linux_static_autotools_build.sh bash "$1" CFLAGS="-Os" --enable-static-link --without-bash-malloc 
+strip "$ROOTFS"/bin/bash

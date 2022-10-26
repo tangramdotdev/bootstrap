@@ -1,115 +1,117 @@
---- Modules/Setup
-+++ Modules/Setup_patched
-@@ -166,45 +166,45 @@
+diff -Naur Python-3.11.0/Modules/Setup Python-3.11.0_patched/Modules/Setup
+--- Python-3.11.0/Modules/Setup	2022-10-24 13:35:39
++++ Python-3.11.0_patched/Modules/Setup	2022-10-26 00:44:37
+@@ -130,44 +130,44 @@
  
- # Modules that should always be present (non UNIX dependent):
+ # Modules that should always be present (POSIX and Windows):
  
--#array -DPy_BUILD_CORE_MODULE arraymodule.c	# array objects
--#cmath cmathmodule.c _math.c -DPy_BUILD_CORE_MODULE # -lm # complex math library functions
--#math mathmodule.c _math.c -DPy_BUILD_CORE_MODULE # -lm # math library functions, e.g. sin()
--#_contextvars _contextvarsmodule.c  # Context Variables
--#_struct -DPy_BUILD_CORE_MODULE _struct.c	# binary structure packing/unpacking
--#_weakref _weakref.c	# basic weak reference support
-+array -DPy_BUILD_CORE_MODULE arraymodule.c	# array objects
-+cmath cmathmodule.c _math.c -DPy_BUILD_CORE_MODULE # -lm # complex math library functions
-+math mathmodule.c _math.c -DPy_BUILD_CORE_MODULE # -lm # math library functions, e.g. sin()
-+_contextvars _contextvarsmodule.c  # Context Variables
-+_struct -DPy_BUILD_CORE_MODULE _struct.c	# binary structure packing/unpacking
-+_weakref _weakref.c	# basic weak reference support
- #_testcapi _testcapimodule.c    # Python C API test module
- #_testinternalcapi _testinternalcapi.c -I$(srcdir)/Include/internal -DPy_BUILD_CORE_MODULE  # Python internal C API test module
--#_random _randommodule.c -DPy_BUILD_CORE_MODULE	# Random number generator
--#_elementtree -I$(srcdir)/Modules/expat -DHAVE_EXPAT_CONFIG_H -DUSE_PYEXPAT_CAPI _elementtree.c	# elementtree accelerator
--#_pickle -DPy_BUILD_CORE_MODULE _pickle.c	# pickle accelerator
--#_datetime _datetimemodule.c	# datetime accelerator
--#_zoneinfo _zoneinfo.c -DPy_BUILD_CORE_MODULE	# zoneinfo accelerator
--#_bisect _bisectmodule.c	# Bisection algorithms
--#_heapq _heapqmodule.c -DPy_BUILD_CORE_MODULE	# Heap queue algorithm
--#_asyncio _asynciomodule.c  # Fast asyncio Future
--#_json -I$(srcdir)/Include/internal -DPy_BUILD_CORE_BUILTIN _json.c	# _json speedups
--#_statistics _statisticsmodule.c # statistics accelerator
-+_random _randommodule.c -DPy_BUILD_CORE_MODULE	# Random number generator
-+_elementtree -I$(srcdir)/Modules/expat -DHAVE_EXPAT_CONFIG_H -DUSE_PYEXPAT_CAPI _elementtree.c	# elementtree accelerator
-+_pickle -DPy_BUILD_CORE_MODULE _pickle.c	# pickle accelerator
-+_datetime _datetimemodule.c	# datetime accelerator
-+_zoneinfo _zoneinfo.c -DPy_BUILD_CORE_MODULE	# zoneinfo accelerator
-+_bisect _bisectmodule.c	# Bisection algorithms
-+_heapq _heapqmodule.c -DPy_BUILD_CORE_MODULE	# Heap queue algorithm
-+_asyncio _asynciomodule.c  # Fast asyncio Future
-+_json -I$(srcdir)/Include/internal -DPy_BUILD_CORE_BUILTIN _json.c	# _json speedups
-+_statistics _statisticsmodule.c # statistics accelerator
- 
--#unicodedata unicodedata.c -DPy_BUILD_CORE_BUILTIN   # static Unicode character database
-+unicodedata unicodedata.c -DPy_BUILD_CORE_BUILTIN   # static Unicode character database
- 
- 
- # Modules with some UNIX dependencies -- on by default:
- # (If you have a really backward UNIX, select and socket may not be
- # supported...)
- 
--#fcntl fcntlmodule.c	# fcntl(2) and ioctl(2)
--#spwd spwdmodule.c		# spwd(3)
--#grp grpmodule.c		# grp(3)
--#select selectmodule.c	# select(2); not on ancient System V
-+fcntl fcntlmodule.c	# fcntl(2) and ioctl(2)
-+spwd spwdmodule.c		# spwd(3)
-+grp grpmodule.c		# grp(3)
-+select selectmodule.c	# select(2); not on ancient System V
- 
- # Memory-mapped files (also works on Win32).
--#mmap mmapmodule.c
-+mmap mmapmodule.c
- 
- # CSV file helper
+-#_asyncio _asynciomodule.c
+-#_bisect _bisectmodule.c
+-#_contextvars _contextvarsmodule.c
 -#_csv _csv.c
-+_csv _csv.c
- 
- # Socket module helper for socket(2)
+-#_datetime _datetimemodule.c
+-#_decimal _decimal/_decimal.c
+-#_heapq _heapqmodule.c
+-#_json _json.c
+-#_lsprof _lsprof.c rotatingtree.c
+-#_multiprocessing -I$(srcdir)/Modules/_multiprocessing _multiprocessing/multiprocessing.c _multiprocessing/semaphore.c
+-#_opcode _opcode.c
+-#_pickle _pickle.c
+-#_queue _queuemodule.c
+-#_random _randommodule.c
 -#_socket socketmodule.c
+-#_statistics _statisticsmodule.c
+-#_struct _struct.c
+-#_typing _typingmodule.c
+-#_zoneinfo _zoneinfo.c
+-#array arraymodule.c
++_asyncio _asynciomodule.c
++_bisect _bisectmodule.c
++_contextvars _contextvarsmodule.c
++_csv _csv.c
++_datetime _datetimemodule.c
++_decimal _decimal/_decimal.c
++_heapq _heapqmodule.c
++_json _json.c
++_lsprof _lsprof.c rotatingtree.c
++_multiprocessing -I$(srcdir)/Modules/_multiprocessing _multiprocessing/multiprocessing.c _multiprocessing/semaphore.c
++_opcode _opcode.c
++_pickle _pickle.c
++_queue _queuemodule.c
++_random _randommodule.c
 +_socket socketmodule.c
++_statistics _statisticsmodule.c
++_struct _struct.c
++_typing _typingmodule.c
++_zoneinfo _zoneinfo.c
++array arraymodule.c
+ #audioop audioop.c
+-#binascii binascii.c
+-#cmath cmathmodule.c
+-#math mathmodule.c
+-#mmap mmapmodule.c
+-#select selectmodule.c
++binascii binascii.c
++cmath cmathmodule.c
++math mathmodule.c
++mmap mmapmodule.c
++select selectmodule.c
  
- # Socket module helper for SSL support; you must comment out the other
- # socket line above, and edit the OPENSSL variable:
-@@ -238,7 +238,7 @@
- #termios termios.c	# Steen Lumholt's termios module
- #resource resource.c	# Jeremy Hylton's rlimit interface
+ # XML
+ #_elementtree _elementtree.c
+ #pyexpat pyexpat.c
  
--#_posixsubprocess  -DPy_BUILD_CORE_BUILTIN _posixsubprocess.c  # POSIX subprocess module helper
-+_posixsubprocess  -DPy_BUILD_CORE_BUILTIN _posixsubprocess.c  # POSIX subprocess module helper
- 
- # Multimedia modules -- off by default.
- # These don't work for 64-bit platforms!!!
-@@ -254,18 +254,18 @@
- # The _md5 module implements the RSA Data Security, Inc. MD5
- # Message-Digest Algorithm, described in RFC 1321.
- 
+ # hashing builtins
+-#_blake2 _blake2/blake2module.c _blake2/blake2b_impl.c _blake2/blake2s_impl.c
 -#_md5 md5module.c
-+_md5 md5module.c
- 
- 
- # The _sha module implements the SHA checksum algorithms.
- # (NIST's Secure Hash Algorithms.)
 -#_sha1 sha1module.c
--#_sha256 sha256module.c -DPy_BUILD_CORE_BUILTIN
--#_sha512 sha512module.c -DPy_BUILD_CORE_BUILTIN
+-#_sha256 sha256module.c
+-#_sha512 sha512module.c
 -#_sha3 _sha3/sha3module.c
++_blake2 _blake2/blake2module.c _blake2/blake2b_impl.c _blake2/blake2s_impl.c
++_md5 md5module.c
 +_sha1 sha1module.c
-+_sha256 sha256module.c -DPy_BUILD_CORE_BUILTIN
-+_sha512 sha512module.c -DPy_BUILD_CORE_BUILTIN
++_sha256 sha256module.c
++_sha512 sha512module.c
 +_sha3 _sha3/sha3module.c
  
- # _blake module
--#_blake2 _blake2/blake2module.c _blake2/blake2b_impl.c _blake2/blake2s_impl.c
-+_blake2 _blake2/blake2module.c _blake2/blake2b_impl.c _blake2/blake2s_impl.c
+ # text encodings and unicode
+ #_codecs_cn cjkcodecs/_codecs_cn.c
+@@ -177,19 +177,19 @@
+ #_codecs_kr cjkcodecs/_codecs_kr.c
+ #_codecs_tw cjkcodecs/_codecs_tw.c
+ #_multibytecodec cjkcodecs/multibytecodec.c
+-#unicodedata unicodedata.c
++unicodedata unicodedata.c
  
- # The _tkinter module.
- #
-@@ -338,7 +338,7 @@
+ # Modules with some UNIX dependencies
  
+-#_posixsubprocess _posixsubprocess.c
+-#_posixshmem -I$(srcdir)/Modules/_multiprocessing _multiprocessing/posixshmem.c -lrt
+-#fcntl fcntlmodule.c
+-#grp grpmodule.c
++_posixsubprocess _posixsubprocess.c
++_posixshmem -I$(srcdir)/Modules/_multiprocessing _multiprocessing/posixshmem.c -lrt
++fcntl fcntlmodule.c
++grp grpmodule.c
+ #ossaudiodev ossaudiodev.c
+-#resource resource.c
+-#spwd spwdmodule.c
+-#syslog syslogmodule.c
+-#termios termios.c
++resource resource.c
++spwd spwdmodule.c
++syslog syslogmodule.c
++termios termios.c
  
- # Helper module for various ascii-encoders
--#binascii binascii.c
-+binascii binascii.c
+ # Modules with UNIX dependencies that require external libraries
  
- # Andrew Kuchling's zlib module.
- # This require zlib 1.1.3 (or later).
+@@ -205,7 +205,7 @@
+ #_gdbm _gdbmmodule.c -lgdbm
+ #_lzma _lzmamodule.c -llzma
+ #_uuid _uuidmodule.c -luuid
+-#zlib  zlibmodule.c -lz
++zlib  zlibmodule.c -lz
+ 
+ # The readline module also supports libeditline (-leditline).
+ # Some systems may require -ltermcap or -ltermlib.

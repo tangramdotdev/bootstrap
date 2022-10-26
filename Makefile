@@ -1,5 +1,6 @@
 # Directories
 DIST=$(PWD)/dist
+PATCHES=$(PWD)/patches
 SCRIPTS=$(PWD)/scripts
 SOURCES=$(PWD)/sources
 WORK=$(PWD)/work
@@ -9,7 +10,7 @@ DATE=$(shell date +"%Y%m%d")
 
 # Build details
 OCI=docker
-IMAGE_FILE=static-tools-dockerfile
+IMAGE_FILE=$(PWD)/Dockerfile
 IMAGE_AMD64=static-tools-amd64
 IMAGE_ARM64=static-tools-arm64
 VOLMOUNT=/bootstrap
@@ -20,7 +21,7 @@ VOLMOUNT=/bootstrap
 # diff: diffutils
 # find: findutils
 # makeinfo: texinfo
-STATIC_TOOLS:=bash bison cp diff find gawk gperf grep gzip make makeinfo m4 patchelf
+STATIC_TOOLS:=bash bison cp diff find flex gawk gperf grep gzip m4 make makeinfo patchelf perl python3 xz
 
 # Package versions
 BASH_VER=5.1.16
@@ -28,6 +29,7 @@ BISON_VER=3.8.2
 COREUTILS_VER=9.1
 DIFFUTILS_VER=3.8
 FINDUTILS_VER=4.9.0
+FLEX_VER=2.6.4
 GAWK_VER=5.2.0
 GPERF_VER=3.1
 GREP_VER=3.8
@@ -37,8 +39,11 @@ LINUX_VER=6.0.3
 MAKE_VER=4.3
 M4_VER=1.4.19
 PATCHELF_VER=0.15.0
+PYTHON_VER=3.11.0
+STATICPERL_VER=1.46
 TEXINFO_VER=6.8
 TOYBOX_VER=0.8.8
+XZ_VER=5.2.6
 
 # Interface targets
 
@@ -220,6 +225,21 @@ findutils_linux_arm64: $(WORK)/aarch64/rootfs/bin/find
 clean_findutils:
 	rm -rfv $(WORK)/findutils* $(WORK)/aarch64/rootfs/bin/find $(WORK)/x86_64/rootfs/bin/find
 
+## flex
+
+.PHONY: flex
+flex: flex_linux_amd64 flex_linux_arm64
+
+.PHONY: flex_linux_amd64
+flex_linux_amd64: $(WORK)/x86_64/rootfs/bin/flex
+
+.PHONY: flex_linux_arm64
+flex_linux_arm64: $(WORK)/aarch64/rootfs/bin/flex
+
+.PHONY: clean_flex
+clean_flex:
+	rm -rfv $(WORK)/flex* $(WORK)/aarch64/rootfs/bin/flex $(WORK)/x86_64/rootfs/bin/flex
+
 ## gawk
 
 .PHONY: gawk
@@ -270,7 +290,7 @@ clean_grep:
 .PHONY: gzip
 gzip: gzip_linux_amd64 gzip_linux_arm64
 
-.PHONY: bzip_linux_amd64
+.PHONY: gzip_linux_amd64
 gzip_linux_amd64: $(WORK)/x86_64/rootfs/bin/gzip
 
 .PHONY: gzip_linux_arm64
@@ -310,6 +330,36 @@ patchelf_linux_arm64: $(WORK)/aarch64/rootfs/bin/patchelf
 clean_patchelf:
 	rm -rfv $(WORK)/patchelf* $(WORK)/aarch64/rootfs/bin/patchelf $(WORK)/x86_64/rootfs/bin/patchelf
 
+## perl
+
+.PHONY: perl
+perl: perl_linux_amd64 perl_linux_arm64
+
+.PHONY: perl_linux_amd64
+perl_linux_amd64: $(WORK)/x86_64/rootfs/bin/perl
+
+.PHONY: perl_linux_arm64
+perl_linux_arm64: $(WORK)/aarch64/rootfs/bin/perl
+
+.PHONY: clean_perl
+clean_perl:
+	rm -rfv $(WORK)/staticperl $(WORK)/aarch64/rootfs/bin/perl $(WORK)/x86_64/rootfs/bin/perl
+
+## python
+
+.PHONY: python
+python: python_linux_amd64 python_linux_arm64
+
+.PHONY: python_linux_amd64
+python_linux_amd64: $(WORK)/x86_64/rootfs/bin/python3
+
+.PHONY: python_linux_arm64
+python_linux_arm64: $(WORK)/aarch64/rootfs/bin/python3
+
+.PHONY: clean_python
+clean_python:
+	rm -rfv $(WORK)/python* $(WORK)/aarch64/rootfs/bin/python3 $(WORK)/x86_64/rootfs/bin/python3
+
 ## texinfo
 
 .PHONY: texinfo
@@ -324,6 +374,21 @@ texinfo_linux_arm64: $(WORK)/aarch64/rootfs/bin/makeinfo
 .PHONY: clean_texinfo
 clean_texinfo:
 	rm -rfv $(WORK)/texinfo* $(WORK)/aarch64/rootfs/bin/makeinfo $(WORK)/x86_64/rootfs/bin/makeinfo
+
+## xz
+
+.PHONY: xz
+xz: xz_linux_amd64 xz_linux_arm64
+
+.PHONY: xz_linux_amd64
+xz_linux_amd64: $(WORK)/x86_64/rootfs/bin/xz
+
+.PHONY: xz_linux_arm64
+xz_linux_arm64: $(WORK)/aarch64/rootfs/bin/xz
+
+.PHONY: clean_xz
+clean_xz:
+	rm -rfv $(WORK)/xz* $(WORK)/aarch64/rootfs/bin/xz $(WORK)/x86_64/rootfs/bin/xz
 
 # Work targets
 
@@ -385,6 +450,14 @@ $(WORK)/x86_64/rootfs/bin/find: $(WORK)/findutils-$(FINDUTILS_VER)
 $(WORK)/aarch64/rootfs/bin/find: $(WORK)/findutils-$(FINDUTILS_VER)
 	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_static_findutils.sh $(FINDUTILS_VER)
 
+## Flex
+
+$(WORK)/x86_64/rootfs/bin/flex: $(WORK)/flex-$(FLEX_VER)
+	$(SCRIPTS)/run_linux_build.sh $(OCI) amd64 build_linux_static_flex.sh $(FLEX_VER)
+
+$(WORK)/aarch64/rootfs/bin/flex: $(WORK)/flex-$(FLEX_VER)
+	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_static_flex.sh $(FLEX_VER)
+
 ## Gawk
 
 $(WORK)/x86_64/rootfs/bin/gawk: $(WORK)/gawk-$(GAWK_VER)
@@ -441,13 +514,37 @@ $(WORK)/x86_64/rootfs/bin/m4: $(WORK)/m4-$(M4_VER)
 $(WORK)/aarch64/rootfs/bin/m4: $(WORK)/m4-$(M4_VER)
 	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_static_m4.sh $(M4_VER)
 
-## Patchelf
+## patchelf
 
 $(WORK)/x86_64/rootfs/bin/patchelf: $(WORK)/patchelf-$(PATCHELF_VER)
-	$(SCRIPTS)/run_linux_build.sh $(OCI) amd64 build_linux_static_patchelf.sh $(PATCHEFL_VER)
+	$(SCRIPTS)/run_linux_build.sh $(OCI) amd64 build_linux_static_patchelf.sh $(PATCHELF_VER)
 
 $(WORK)/aarch64/rootfs/bin/patchelf: $(WORK)/patchelf-$(PATCHELF_VER)
 	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_static_patchelf.sh $(PATCHELF_VER)
+
+## Perl
+
+$(WORK)/x86_64/rootfs/bin/perl: $(WORK)/staticperl
+	$(SCRIPTS)/run_linux_build.sh $(OCI) amd64 build_linux_static_perl.sh
+
+$(WORK)/aarch64/rootfs/bin/perl: $(WORK)/staticperl
+	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_static_perl.sh
+
+## Python
+
+$(WORK)/x86_64/rootfs/bin/python3: $(WORK)/Python-$(PYTHON_VER)
+	$(SCRIPTS)/run_linux_build.sh $(OCI) amd64 build_linux_static_python.sh $(PYTHON_VER)
+
+$(WORK)/aarch64/rootfs/bin/python3: $(WORK)/Python-$(PYTHON_VER)
+	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_static_python.sh $(PYTHON_VER)
+
+## xz
+
+$(WORK)/x86_64/rootfs/bin/xz: $(WORK)/xz-$(XZ_VER)
+	$(SCRIPTS)/run_linux_build.sh $(OCI) amd64 build_linux_static_xz.sh $(XZ_VER)
+
+$(WORK)/aarch64/rootfs/bin/xz: $(WORK)/xz-$(XZ_VER)
+	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_static_xz.sh $(XZ_VER)
 
 ## Musl toolchain
 
@@ -498,10 +595,10 @@ $(WORK)/toybox_macos_x86:
 
 ## Static Tools
 
-${DIST}/static_tools_linux_aarch64_$(DATE).tar.xz: static_tools_arm64
+$(DIST)/static_tools_linux_aarch64_$(DATE).tar.xz: static_tools_arm64
 	tar -C $(WORK)/aarch64/rootfs -cJf $@ .
 
-${DIST}/static_tools_linux_x86_64_$(DATE).tar.xz: static_tools_amd64
+$(DIST)/static_tools_linux_x86_64_$(DATE).tar.xz: static_tools_amd64
 	tar -C $(WORK)/x86_64/rootfs -cJf $@ .
 
 # Sources
@@ -522,6 +619,13 @@ $(WORK)/%: $(SOURCES)/%.tar.xz
 	cd $(WORK) && \
 	tar -xf $<
 
+$(WORK)/staticperl: $(SOURCES)/staticperl
+	cp $< $@ && \
+	chmod +x $@
+
+$(SOURCES)/staticperl:
+	wget -O $@ https://fastapi.metacpan.org/source/MLEHMANN/App-Staticperl-$(STATICPERL_VER)/bin/staticperl
+
 $(SOURCES)/bash-$(BASH_VER).tar.gz:
 	wget -O $@ https://ftp.gnu.org/gnu/bash/bash-$(BASH_VER).tar.gz
 	
@@ -536,6 +640,9 @@ $(SOURCES)/diffutils-$(DIFFUTILS_VER).tar.xz:
 
 $(SOURCES)/findutils-$(FINDUTILS_VER).tar.xz:
 	wget -O $@ https://ftp.gnu.org/gnu/findutils/findutils-$(FINDUTILS_VER).tar.xz
+
+$(SOURCES)/flex-$(FLEX_VER).tar.gz:
+	wget -O $@ https://github.com/westes/flex/releases/download/v$(FLEX_VER)/flex-$(FLEX_VER).tar.gz
 
 $(SOURCES)/gawk-$(GAWK_VER).tar.xz:
 	wget -O $@ https://ftp.gnu.org/gnu/gawk/gawk-$(GAWK_VER).tar.xz
@@ -558,8 +665,20 @@ $(SOURCES)/m4-$(M4_VER).tar.xz:
 $(SOURCES)/patchelf-$(PATCHELF_VER).tar.bz2:
 	wget -O $@ https://github.com/NixOS/patchelf/releases/download/$(PATCHELF_VER)/patchelf-$(PATCHELF_VER).tar.bz2
 
+$(SOURCES)/Python-$(PYTHON_VER).tar.xz:
+	wget -O $@ https://www.python.org/ftp/python/$(PYTHON_VER)/Python-$(PYTHON_VER).tar.xz
+
+$(WORK)/Python-$(PYTHON_VER): $(SOURCES)/Python-$(PYTHON_VER).tar.xz
+	cd $(WORK) && \
+	tar -xf $< && \
+	cd $@ && \
+	patch -p1 -i $(PATCHES)/python-modules-setup.patch
+
 $(SOURCES)/texinfo-$(TEXINFO_VER).tar.xz:
 	wget -O $@ https://ftp.gnu.org/gnu/texinfo/texinfo-$(TEXINFO_VER).tar.xz
+
+$(SOURCES)/xz-$(XZ_VER).tar.xz:
+	wget -O $@ https://tukaani.org/xz/xz-$(XZ_VER).tar.xz
 
 $(SOURCES)/aarch64-linux-musl-native.tgz:
 	wget -O $@ https://musl.cc/aarch64-linux-musl-native.tgz

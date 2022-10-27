@@ -21,7 +21,7 @@ VOLMOUNT=/bootstrap
 # diff: diffutils
 # find: findutils
 # makeinfo: texinfo
-STATIC_TOOLS:=bash bison cp diff find flex gawk gperf grep gzip m4 make makeinfo patchelf perl python3 sed tar xz
+STATIC_TOOLS:=bash bison cp diff find flex gawk gperf grep gzip m4 make makeinfo patch patchelf perl python3 sed tar xz
 
 # Package versions
 BASH_VER=5.1.16
@@ -37,6 +37,7 @@ GZIP_VER=1.12
 LINUX_VER=6.0.5
 M4_VER=1.4.19
 MAKE_VER=4.3
+PATCH_VER=2.7.6
 PATCHELF_VER=0.15.0
 PYTHON_VER=3.11.0
 SED_VER=4.8
@@ -352,6 +353,21 @@ linux_headers_arm64: $(WORK)/aarch64/linux_headers
 clean_linux_headers:
 	rm -rfv $(WORK)/x86_64/linux* $(WORK)/aarch64/linux*
 
+## patch
+
+.PHONY: patch
+patch: patch_linux_amd64 patch_linux_arm64
+
+.PHONY: patch_linux_amd64
+patch_linux_amd64: $(WORK)/x86_64/rootfs/bin/patch
+
+.PHONY: patch_linux_arm64
+patch_linux_arm64: $(WORK)/aarch64/rootfs/bin/patch
+
+.PHONY: clean_patch
+clean_patch:
+	rm -rfv $(WORK)/patch* $(WORK)/aarch64/rootfs/bin/patch $(WORK)/x86_64/rootfs/bin/patch
+
 ## patchelf
 
 .PHONY: patchelf
@@ -581,6 +597,14 @@ $(WORK)/x86_64/rootfs/bin/m4: $(WORK)/m4-$(M4_VER)
 $(WORK)/aarch64/rootfs/bin/m4: $(WORK)/m4-$(M4_VER)
 	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_static_m4.sh $(M4_VER)
 
+## patch
+
+$(WORK)/x86_64/rootfs/bin/patch: $(WORK)/patch-$(PATCH_VER)
+	$(SCRIPTS)/run_linux_build.sh $(OCI) amd64 build_linux_static_patch.sh $(PATCH_VER)
+
+$(WORK)/aarch64/rootfs/bin/patch: $(WORK)/patch-$(PATCH_VER)
+	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_static_patch.sh $(PATCH_VER)
+
 ## patchelf
 
 $(WORK)/x86_64/rootfs/bin/patchelf: $(WORK)/patchelf-$(PATCHELF_VER)
@@ -768,6 +792,9 @@ $(SOURCES)/make-$(MAKE_VER).tar.lz:
 
 $(SOURCES)/m4-$(M4_VER).tar.xz:
 	wget -O $@ https://ftp.gnu.org/gnu/m4/m4-$(M4_VER).tar.xz
+
+$(SOURCES)/patch-$(PATCH_VER).tar.xz:
+	wget -O $@ https://ftp.gnu.org/gnu/patch/patch-$(PATCH_VER).tar.xz
 
 $(SOURCES)/patchelf-$(PATCHELF_VER).tar.bz2:
 	wget -O $@ https://github.com/NixOS/patchelf/releases/download/$(PATCHELF_VER)/patchelf-$(PATCHELF_VER).tar.bz2

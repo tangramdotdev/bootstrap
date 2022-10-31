@@ -10,7 +10,10 @@ DATE=$(shell date +"%Y%m%d")
 
 # Build details
 OCI=docker
+CTNG_IMAGE_FILE=$(PWD)/ctng-dockerfile
 IMAGE_FILE=$(PWD)/Dockerfile
+CTNG_IMAGE_AMD64=ctng-amd64
+CTNG_IMAGE_ARM64=ctng-arm64
 IMAGE_AMD64=static-tools-amd64
 IMAGE_ARM64=static-tools-arm64
 VOLMOUNT=/bootstrap
@@ -87,6 +90,29 @@ image_amd64:
 image_arm64:
 	$(OCI) build --platform linux/arm64/v8 -t $(IMAGE_ARM64) -f $(IMAGE_FILE) .
 
+.PHONY: ctng_image_amd64
+ctng_image_amd64:
+	$(OCI) build --platform linux/amd64 -t $(CTNG_IMAGE_AMD64) -f $(CTNG_IMAGE_FILE) .
+
+.PHONY: ctng_image_arm64
+ctng_image_arm64:
+	$(OCI) build --platform linux/arm64/v8 -t $(CTNG_IMAGE_ARM64) -f $(CTNG_IMAGE_FILE) .
+
+# GCC/GLIBC toolchain
+
+.PHONY: glibc_toolchain
+glibc_toolchain: glibc_toolchain_amd64 glibc_toolchain_arm64
+
+.PHONY: glibc_toolchain_amd64
+glibc_toolchain_amd64: $(WORK)/x86_64/glibc_toolchain
+
+.PHONY: glibc_toolchain_arm64
+glibc_toolchain_arm64: $(WORK)/aarch64/glibc_toolchain
+
+.PHONY: clean_glibc_toolchain
+clean_glibc_toolchain:
+	rm -rfv $(WORK)/{aarch64,x86-64}/glibc_toolchain 
+
 # Static tools
 
 .PHONY: static_tools
@@ -124,6 +150,15 @@ clean_toybox:
 
 .PHONY: bash_dist
 bash_dist: $(DIST)/bash_linux_aarch64_$(DATE).tar.xz $(DIST)/bash_linux_x86_64_$(DATE).tar.xz $(DIST)/bash_macos_universal_$(DATE).tar.xz
+
+.PHONY: glibc_toolchain_dist
+glibc_toolchain_dist: glibc_toolchain_dist_amd64 glibc_toolchain_dist_arm64
+
+.PHONY: glibc_toolchain_dist_amd64
+glibc_toolchain_dist_amd64: $(DIST)/glibc_toolchain_x86_64_$(DATE).tar.xz 
+
+.PHONY: glibc_toolchain_dist_arm64
+glibc_toolchain_dist_arm64: $(DIST)/glibc_toolchain_aarch64_$(DATE).tar.xz 
 
 .PHONY: musl_toolchain_dist
 musl_toolchain_dist: $(DIST)/musl_toolchain_linux_aarch64_$(DATE).tar.xz $(DIST)/musl_toolchain_linux_x86_64_$(DATE).tar.xz
@@ -474,6 +509,31 @@ clean_xz:
 	rm -rfv $(WORK)/xz* $(WORK)/aarch64/rootfs/bin/xz $(WORK)/x86_64/rootfs/bin/xz
 
 # Work targets
+
+## glibc toolchain
+
+$(WORK)/x86_64/glibc_toolchain:
+	$(OCI) run \
+		--rm \
+		-it \
+		--name "glibc_toolchain_amd64" \
+		--platform linux/amd64 \
+		-v "$(PWD)":/$(VOLMOUNT) \
+		$(CTNG_IMAGE_AMD64) \
+		/bin/bash -c $(VOLMOUNT)/scripts/build_ctng_toolchain.sh
+
+$(WORK)/aarch64/glibc_toolchain:
+	$(OCI) run \
+		--rm \
+		-it \
+		--name "glibc_toolchain_arm64" \
+		--platform linux/arm64 \
+		-v "$(PWD)":/$(VOLMOUNT) \
+		$(CTNG_IMAGE_ARM64) \
+		/bin/bash -c $(VOLMOUNT)/scripts/build_ctng_toolchain.sh
+
+$(DIST)/glibc_toolchain_%_$(DATE).tar.xz: $(WORK)/%/glibc_toolchain
+	tar -C $< -cJf $@
 
 ## Bash
 

@@ -7,7 +7,7 @@ export CPPFLAGS="-static"
 export LDFLAGS="-static"
 export LINKFORVOLMOUNT=" "
 # FIXME - make this compile without errors!
-"$SCRIPTS"/run_linux_static_autotools_build.sh python "$1" \
+"$SCRIPTS"/run_linux_static_autotools_build.sh Python "$1" \
 	--disable-shared \
 	--enable-optimizations \
 	CFLAGS="-static" \

@@ -274,7 +274,6 @@ diffutils_linux_amd64: $(WORK)/x86_64/rootfs/bin/diff
 .PHONY: diffutils_linux_arm64
 diffutils_linux_arm64: $(WORK)/aarch64/rootfs/bin/diff
 
-# FIXME:  Cannot find a type to use in place of socklen_t
 DIFFUTILS_BINS=cmp diff diff3 sdiff
 .PHONY: diffutils_macos
 diffutils_macos: $(DIFFUTILS_BINS:%=$(WORK)/macos/rootfs/bin/%)
@@ -368,7 +367,6 @@ grep_linux_amd64: $(WORK)/x86_64/rootfs/bin/grep
 .PHONY: grep_linux_arm64
 grep_linux_arm64: $(WORK)/aarch64/rootfs/bin/grep
 
-# FIXME - socklen_t problem
 .PHONY: grep_macos
 grep_macos: $(WORK)/macos/rootfs/bin/grep
 
@@ -405,7 +403,6 @@ m4_linux_amd64: $(WORK)/x86_64/rootfs/bin/m4
 .PHONY: m4_linux_arm64
 m4_linux_arm64: $(WORK)/aarch64/rootfs/bin/m4
 
-# FIXME - socklen_t problem
 .PHONY: m4_macos
 m4_macos: $(WORK)/macos/rootfs/bin/m4
 
@@ -424,7 +421,7 @@ make_linux_amd64: $(WORK)/x86_64/rootfs/bin/make
 .PHONY: make_linux_arm64
 make_linux_arm64: $(WORK)/aarch64/rootfs/bin/make
 
-# FIXME - not socklen_t, but doesn't build
+# FIXME - building for macOS-x86_64 but attempting to link with file built for macOS-arm64
 .PHONY: make_macos
 make_macos: $(WORK)/macos/rootfs/bin/make
 

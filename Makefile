@@ -56,7 +56,7 @@ XZ_VER=5.2.6
 all: dist
 
 .PHONY: clean
-clean: clean_dist clean_bash clean_static_tools clean_toybox
+clean: clean_dist clean_bash clean_glibc_toolchain clean_macos_bootstrap clean_static_tools clean_toybox
 
 .PHONY: clean_sources
 clean_sources:
@@ -70,7 +70,7 @@ dirs:
 	mkdir -p $(DIST) $(SOURCES) $(WORK)
 
 .PHONY: dist
-dist: bash_dist musl_toolchain_dist static_tools_dist toybox_dist
+dist: bash_dist glibc_toolchain_dist macos_bootstrap_dist musl_toolchain_dist static_tools_dist toybox_dist
 
 .PHONY: images
 images: image_amd64 image_arm64
@@ -113,10 +113,18 @@ glibc_toolchain_arm64: $(WORK)/aarch64/glibc_toolchain
 clean_glibc_toolchain:
 	rm -rfv $(WORK)/{aarch64,x86-64}/glibc_toolchain 
 
+# Macos bootstrap
+.PHONY: macos_bootstrap
+macos_bootstrap: $(WORK)/macos_bootstrap
+
+.PHONY: clean_macos_bootstrap
+clean_macos_bootstrap:
+	rm -rfv $(WORK)/macos_bootstrap
+
 # Static tools
 
 .PHONY: static_tools
-static_tools: static_tools_amd64 static_tools_arm64
+static_tools: static_tools_amd64 static_tools_arm64 static_tools_macos
 
 .PHONY: static_tools_amd64
 static_tools_amd64: $(STATIC_TOOLS:%=$(WORK)/x86_64/rootfs/bin/%)
@@ -124,9 +132,12 @@ static_tools_amd64: $(STATIC_TOOLS:%=$(WORK)/x86_64/rootfs/bin/%)
 .PHONY: static_tools_arm64
 static_tools_arm64: $(STATIC_TOOLS:%=$(WORK)/aarch64/rootfs/bin/%)
 
+.PHONY: static_tools_macos
+static_tools_macos: $(STATIC_TOOLS:%=$(WORK)/macos/rootfs/bin/%)
+
 .PHONY: clean_static_tools
 clean_static_tools:
-	rm -rfv $(WORK)/{aarch64,x86_64}
+	rm -rfv $(WORK)/{aarch64,x86_64,macos}
 
 # Toybox
 
@@ -160,6 +171,9 @@ glibc_toolchain_dist_amd64: $(DIST)/glibc_toolchain_x86_64_$(DATE).tar.xz
 .PHONY: glibc_toolchain_dist_arm64
 glibc_toolchain_dist_arm64: $(DIST)/glibc_toolchain_aarch64_$(DATE).tar.xz 
 
+.PHONY: macos_bootstrap_dist
+macos_bootstrap_dist: $(DIST)/macos_bootstrap_$(DATE).tar.xz
+
 .PHONY: musl_toolchain_dist
 musl_toolchain_dist: $(DIST)/musl_toolchain_linux_aarch64_$(DATE).tar.xz $(DIST)/musl_toolchain_linux_x86_64_$(DATE).tar.xz
 
@@ -173,13 +187,16 @@ linux_headers_amd64_dist: $(DIST)/linux_headers_$(LINUX_VER)_x86_64_$(DATE).tar.
 linux_headers_arm64_dist: $(DIST)/linux_headers_$(LINUX_VER)_aarch64_$(DATE).tar.xz
 
 .PHONY: static_tools_dist
-static_tools_dist: static_tools_amd64_dist static_tools_arm64_dist
+static_tools_dist: static_tools_amd64_dist static_tools_arm64_dist static_tools_macos_dist
 
 .PHONY: static_tools_amd64_dist
 static_tools_amd64_dist: $(DIST)/static_tools_linux_x86_64_$(DATE).tar.xz 
 
 .PHONY: static_tools_arm64_dist
 static_tools_arm64_dist: $(DIST)/static_tools_linux_aarch64_$(DATE).tar.xz 
+
+.PHONY: static_tools_macos_dist
+static_tools_macos_dist: $(DIST)/static_tools_macos_universal_$(DATE).tar.xz
 
 .PHONY: toybox_dist
 toybox_dist: $(DIST)/toybox_linux_aarch64_$(DATE).tar.xz $(DIST)/toybox_linux_x86_64_$(DATE).tar.xz $(DIST)/toybox_macos_universal_$(DATE).tar.xz
@@ -206,12 +223,12 @@ bash_macos: $(WORK)/bash_macos_universal
 
 .PHONY: clean_bash
 clean_bash:
-	rm -rfv $(WORK)/bash* $(WORK)/aarch64/rootfs/bin/bash $(WORK)/x86_64/rootfs/bin/bash
+	rm -rfv $(WORK)/bash* $(WORK)/aarch64/rootfs/bin/bash $(WORK)/x86_64/rootfs/bin/bash $(WORK)/macos/rootfs/bin/bash
 
 ## bison
 
 .PHONY: bison
-bison: bison_linux_amd64 bison_linux_arm64
+bison: bison_linux_amd64 bison_linux_arm64 bison_macos
 
 .PHONY: bison_linux_amd64
 bison_linux_amd64: $(WORK)/x86_64/rootfs/bin/bison
@@ -219,14 +236,18 @@ bison_linux_amd64: $(WORK)/x86_64/rootfs/bin/bison
 .PHONY: bison_linux_arm64
 bison_linux_arm64: $(WORK)/aarch64/rootfs/bin/bison
 
+# FIXME - bring yacc too
+.PHONY: bison_macos
+bison_macos: $(WORK)/macos/rootfs/bin/bison
+
 .PHONY: clean_bison
 clean_bison:
-	rm -rfv $(WORK)/bison* $(WORK)/aarch64/rootfs/bin/bison $(WORK)/x86_64/rootfs/bin/bison
+	rm -rfv $(WORK)/bison* $(WORK)/aarch64/rootfs/bin/bison $(WORK)/x86_64/rootfs/bin/bison $(WORK)/macos/rootfs/bin/bison
 
 ## coreutils
 
 .PHONY: coreutils
-coreutils: coreutils_linux_amd64 coreutils_linux_arm64
+coreutils: coreutils_linux_amd64 coreutils_linux_arm64 coreutils_macos
 
 .PHONY: coreutils_linux_amd64
 coreutils_linux_amd64: $(WORK)/x86_64/rootfs/bin/cp
@@ -234,9 +255,13 @@ coreutils_linux_amd64: $(WORK)/x86_64/rootfs/bin/cp
 .PHONY: coreutils_linux_arm64
 coreutils_linux_arm64: $(WORK)/aarch64/rootfs/bin/cp
 
+COREUTILS_BINS=base32 base64 b2sum basename basenc cat chcon chgrp chmod chown chroot cksum comm cp csplit cut date dd df dir dircolors dirname du echo env expand expr factor false fmt fold groups head hostid id install join link ln logname ls md5sum mkdir mkfifo mknod mktemp mv nice nl nohup nproc numfmt od paste pathchk pinky pr printenv printf ptx pwd readlink realpath rm rmdir runcon seq sha1sum sha224sum sha256sum sha384sum sha512sum shred shuf sleep sort split stat stty sum sync tac tail tee test timeout touch tr true truncate tsort tty uname unexpand uniq unlink users vdir wc who whoami yes
+.PHONY: coreutils_macos
+coreutils_macos: $(COREUTILS_BINS:%=$(WORK)/macos/rootfs/bin/%)
+
 .PHONY: clean_coreutils
 clean_coreutils:
-	rm -rfv $(WORK)/coreutils* $(WORK)/aarch64/rootfs/bin/cp $(WORK)/x86_64/rootfs/bin/cp
+	rm -rfv $(WORK)/coreutils* $(WORK)/aarch64/rootfs/bin/cp $(WORK)/x86_64/rootfs/bin/cp  $(COREUTILS_BINS:%=$(WORK)/macos/rootfs/bin/%)
 
 ## diffutils
 
@@ -249,9 +274,14 @@ diffutils_linux_amd64: $(WORK)/x86_64/rootfs/bin/diff
 .PHONY: diffutils_linux_arm64
 diffutils_linux_arm64: $(WORK)/aarch64/rootfs/bin/diff
 
+# FIXME:  Cannot find a type to use in place of socklen_t
+DIFFUTILS_BINS=cmp diff diff3 sdiff
+.PHONY: diffutils_macos
+diffutils_macos: $(DIFFUTILS_BINS:%=$(WORK)/macos/rootfs/bin/%)
+
 .PHONY: clean_diffutils
 clean_diffutils:
-	rm -rfv $(WORK)/diffutils* $(WORK)/aarch64/rootfs/bin/diff $(WORK)/x86_64/rootfs/bin/diff
+	rm -rfv $(WORK)/diffutils* $(WORK)/aarch64/rootfs/bin/diff $(WORK)/x86_64/rootfs/bin/diff $(DIFFUTILS_BINS:%=$(WORK)/macos/rootfs/bin/%)
 
 ## findutils
 
@@ -264,9 +294,13 @@ findutils_linux_amd64: $(WORK)/x86_64/rootfs/bin/find
 .PHONY: findutils_linux_arm64
 findutils_linux_arm64: $(WORK)/aarch64/rootfs/bin/find
 
+FINDUTILS_BINS=find locate xargs
+.PHONY: findutils_macos
+findutils_macos: $(FINDUTILS_BINS:%=$(WORK)/macos/rootfs/bin/%)
+
 .PHONY: clean_findutils
 clean_findutils:
-	rm -rfv $(WORK)/findutils* $(WORK)/aarch64/rootfs/bin/find $(WORK)/x86_64/rootfs/bin/find
+	rm -rfv $(WORK)/findutils* $(WORK)/aarch64/rootfs/bin/find $(WORK)/x86_64/rootfs/bin/find $(FINDUTILS_BINS:%=$(WORK)/macos/rootfs/bin/%)
 
 ## flex
 
@@ -279,9 +313,13 @@ flex_linux_amd64: $(WORK)/x86_64/rootfs/bin/flex
 .PHONY: flex_linux_arm64
 flex_linux_arm64: $(WORK)/aarch64/rootfs/bin/flex
 
+FLEX_BINS=flex flex++
+.PHONY: flex_macos
+flex_macos: $(FLEX_BINS:%=$(WORK)/macos/rootfs/bin/%)
+
 .PHONY: clean_flex
 clean_flex:
-	rm -rfv $(WORK)/flex* $(WORK)/aarch64/rootfs/bin/flex $(WORK)/x86_64/rootfs/bin/flex
+	rm -rfv $(WORK)/flex* $(WORK)/aarch64/rootfs/bin/flex $(WORK)/x86_64/rootfs/bin/flex $(FLEX_BINS:%=$(WORK)/macos/rootfs/bin/%)
 
 ## gawk
 
@@ -294,9 +332,12 @@ gawk_linux_amd64: $(WORK)/x86_64/rootfs/bin/gawk
 .PHONY: gawk_linux_arm64
 gawk_linux_arm64: $(WORK)/aarch64/rootfs/bin/gawk
 
+.PHONY: gawk_macos
+gawk_macos: $(WORK)/macos/rootfs/bin/gawk
+
 .PHONY: clean_gawk
 clean_gawk:
-	rm -rfv $(WORK)/gawk* $(WORK)/aarch64/rootfs/bin/gawk $(WORK)/x86_64/rootfs/bin/gawk
+	rm -rfv $(WORK)/gawk* $(WORK)/aarch64/rootfs/bin/gawk $(WORK)/x86_64/rootfs/bin/gawk $(WORK)/macos/rootfs/bin/gawk
 
 ## gperf
 
@@ -309,9 +350,12 @@ gperf_linux_amd64: $(WORK)/x86_64/rootfs/bin/gperf
 .PHONY: gperf_linux_arm64
 gperf_linux_arm64: $(WORK)/aarch64/rootfs/bin/gperf
 
+.PHONY: gperf_macos
+gperf_macos: $(WORK)/macos/rootfs/bin/gperf
+
 .PHONY: clean_gperf
 clean_gperf:
-	rm -rfv $(WORK)/gperf* $(WORK)/aarch64/rootfs/bin/gperf $(WORK)/x86_64/rootfs/bin/gperf
+	rm -rfv $(WORK)/gperf* $(WORK)/aarch64/rootfs/bin/gperf $(WORK)/x86_64/rootfs/bin/gperf $(WORK)/macos/rootfs/bin/gperf
 
 ## grep
 
@@ -324,9 +368,13 @@ grep_linux_amd64: $(WORK)/x86_64/rootfs/bin/grep
 .PHONY: grep_linux_arm64
 grep_linux_arm64: $(WORK)/aarch64/rootfs/bin/grep
 
+# FIXME - socklen_t problem
+.PHONY: grep_macos
+grep_macos: $(WORK)/macos/rootfs/bin/grep
+
 .PHONY: clean_grep
 clean_grep:
-	rm -rfv $(WORK)/grep* $(WORK)/aarch64/rootfs/bin/grep $(WORK)/x86_64/rootfs/bin/grep
+	rm -rfv $(WORK)/grep* $(WORK)/aarch64/rootfs/bin/grep $(WORK)/x86_64/rootfs/bin/grep $(WORK)/macos/rootfs/bin/grep
 
 ## gzip
 
@@ -339,9 +387,12 @@ gzip_linux_amd64: $(WORK)/x86_64/rootfs/bin/gzip
 .PHONY: gzip_linux_arm64
 gzip_linux_arm64: $(WORK)/aarch64/rootfs/bin/gzip
 
+.PHONY: gzip_macos
+gzip_macos: $(WORK)/macos/rootfs/bin/gzip
+
 .PHONY: clean_gzip
 clean_gzip:
-	rm -rfv $(WORK)/gzip* $(WORK)/aarch64/rootfs/bin/gzip $(WORK)/x86_64/rootfs/bin/gzip
+	rm -rfv $(WORK)/gzip* $(WORK)/aarch64/rootfs/bin/gzip $(WORK)/x86_64/rootfs/bin/gzip $(WORK)/macos/rootfs/bin/gzip
 
 ## m4
 
@@ -354,9 +405,13 @@ m4_linux_amd64: $(WORK)/x86_64/rootfs/bin/m4
 .PHONY: m4_linux_arm64
 m4_linux_arm64: $(WORK)/aarch64/rootfs/bin/m4
 
+# FIXME - socklen_t problem
+.PHONY: m4_macos
+m4_macos: $(WORK)/macos/rootfs/bin/m4
+
 .PHONY: clean_m4
 clean_m4:
-	rm -rfv $(WORK)/m4* $(WORK)/aarch64/rootfs/bin/m4 $(WORK)/x86_64/rootfs/bin/m4
+	rm -rfv $(WORK)/m4* $(WORK)/aarch64/rootfs/bin/m4 $(WORK)/x86_64/rootfs/bin/m4 $(WORK)/macos/rootfs/bin/m4
 
 ## make
 
@@ -369,9 +424,13 @@ make_linux_amd64: $(WORK)/x86_64/rootfs/bin/make
 .PHONY: make_linux_arm64
 make_linux_arm64: $(WORK)/aarch64/rootfs/bin/make
 
+# FIXME - not socklen_t, but doesn't build
+.PHONY: make_macos
+make_macos: $(WORK)/macos/rootfs/bin/make
+
 .PHONY: clean_make
 clean_make:
-	rm -rfv $(WORK)/make* $(WORK)/aarch64/rootfs/bin/make $(WORK)/x86_64/rootfs/bin/make
+	rm -rfv $(WORK)/make* $(WORK)/aarch64/rootfs/bin/make $(WORK)/x86_64/rootfs/bin/make $(WORK)/macos/rootfs/bin/make
 
 ## Linux headers
 
@@ -399,9 +458,12 @@ patch_linux_amd64: $(WORK)/x86_64/rootfs/bin/patch
 .PHONY: patch_linux_arm64
 patch_linux_arm64: $(WORK)/aarch64/rootfs/bin/patch
 
+.PHONY: patch_macos
+patch_macos: $(WORK)/macos/rootfs/bin/patch
+
 .PHONY: clean_patch
 clean_patch:
-	rm -rfv $(WORK)/patch* $(WORK)/aarch64/rootfs/bin/patch $(WORK)/x86_64/rootfs/bin/patch
+	rm -rfv $(WORK)/patch* $(WORK)/aarch64/rootfs/bin/patch $(WORK)/x86_64/rootfs/bin/patch $(WORK)/macos/rootfs/bin/patch
 
 ## patchelf
 
@@ -448,6 +510,42 @@ python_linux_arm64: $(WORK)/aarch64/rootfs/bin/python3
 clean_python:
 	rm -rfv $(WORK)/python* $(WORK)/aarch64/rootfs/bin/python3 $(WORK)/x86_64/rootfs/bin/python3
 
+## sed
+
+.PHONY: sed
+sed: sed_linux_amd64 sed_linux_arm64
+
+.PHONY: sed_linux_amd64
+sed_linux_amd64: $(WORK)/x86_64/rootfs/bin/sed
+
+.PHONY: sed_linux_arm64
+sed_linux_arm64: $(WORK)/aarch64/rootfs/bin/sed
+
+.PHONY: sed_macos
+sed_macos: $(WORK)/macos/rootfs/bin/sed
+
+.PHONY: clean_sed
+clean_sed:
+	rm -rfv $(WORK)/sed* $(WORK)/aarch64/rootfs/bin/sed $(WORK)/x86_64/rootfs/bin/sed $(WORK)/macos/rootfs/bin/sed
+
+## tar
+
+.PHONY: tar
+tar: tar_linux_amd64 tar_linux_arm64
+
+.PHONY: tar_linux_amd64
+tar_linux_amd64: $(WORK)/x86_64/rootfs/bin/tar
+
+.PHONY: tar_linux_arm64
+tar_linux_arm64: $(WORK)/aarch64/rootfs/bin/tar
+
+.PHONY: tar_macos
+tar_macos: $(WORK)/macos/rootfs/bin/tar
+
+.PHONY: clean_tar
+clean_tar:
+	rm -rfv $(WORK)/tar* $(WORK)/aarch64/rootfs/bin/tar $(WORK)/x86_64/rootfs/bin/tar $(WORK)/macos/rootfs/bin/tar
+
 ## texinfo
 
 .PHONY: texinfo
@@ -462,36 +560,6 @@ texinfo_linux_arm64: $(WORK)/aarch64/rootfs/bin/makeinfo
 .PHONY: clean_texinfo
 clean_texinfo:
 	rm -rfv $(WORK)/texinfo* $(WORK)/aarch64/rootfs/bin/makeinfo $(WORK)/x86_64/rootfs/bin/makeinfo
-
-## sed
-
-.PHONY: sed
-sed: sed_linux_amd64 sed_linux_arm64
-
-.PHONY: sed_linux_amd64
-sed_linux_amd64: $(WORK)/x86_64/rootfs/bin/sed
-
-.PHONY: sed_linux_arm64
-sed_linux_arm64: $(WORK)/aarch64/rootfs/bin/sed
-
-.PHONY: clean_sed
-clean_sed:
-	rm -rfv $(WORK)/sed* $(WORK)/aarch64/rootfs/bin/sed $(WORK)/x86_64/rootfs/bin/sed
-
-## tar
-
-.PHONY: tar
-tar: tar_linux_amd64 tar_linux_arm64
-
-.PHONY: tar_linux_amd64
-tar_linux_amd64: $(WORK)/x86_64/rootfs/bin/tar
-
-.PHONY: tar_linux_arm64
-tar_linux_arm64: $(WORK)/aarch64/rootfs/bin/tar
-
-.PHONY: clean_tar
-clean_tar:
-	rm -rfv $(WORK)/tar* $(WORK)/aarch64/rootfs/bin/tar $(WORK)/x86_64/rootfs/bin/tar
 
 ## xz
 
@@ -518,7 +586,7 @@ $(WORK)/x86_64/glibc_toolchain:
 		-it \
 		--name "glibc_toolchain_amd64" \
 		--platform linux/amd64 \
-		-v "$(PWD)":/$(VOLMOUNT) \
+		-v "$(PWD)":$(VOLMOUNT) \
 		$(CTNG_IMAGE_AMD64) \
 		/bin/bash -c $(VOLMOUNT)/scripts/build_ctng_toolchain.sh
 
@@ -528,12 +596,12 @@ $(WORK)/aarch64/glibc_toolchain:
 		-it \
 		--name "glibc_toolchain_arm64" \
 		--platform linux/arm64 \
-		-v "$(PWD)":/$(VOLMOUNT) \
+		-v "$(PWD)":$(VOLMOUNT) \
 		$(CTNG_IMAGE_ARM64) \
 		/bin/bash -c $(VOLMOUNT)/scripts/build_ctng_toolchain.sh
 
 $(DIST)/glibc_toolchain_%_$(DATE).tar.xz: $(WORK)/%/glibc_toolchain
-	tar -C $< -cJf $@
+	tar -C $< -cJf $@ .
 
 ## Bash
 
@@ -552,14 +620,19 @@ $(WORK)/aarch64/rootfs/bin/bash: $(WORK)/bash-$(BASH_VER)
 $(WORK)/bash_linux_%: $(WORK)/%/rootfs/bin/bash
 	cp $< $@
 
-$(WORK)/bash_macos_universal: $(WORK)/bash_macos_arm $(WORK)/bash_macos_x86
-	lipo -create -output $@ $^
+$(WORK)/bash_macos_universal: $(WORK)/macos/rootfs/bin/bash
+	cp $< $@
 
-$(WORK)/bash_macos_arm: $(WORK)/bash-$(BASH_VER)
-	$(SCRIPTS)/build_macos_bash.sh $< $@ arm64-apple-macos12.3
+$(WORK)/macos/arm64/rootfs/bin/bash: $(WORK)/bash-$(BASH_VER)
+	$(SCRIPTS)/run_macos_build.sh $< arm64 && strip $@
 
-$(WORK)/bash_macos_x86: $(WORK)/bash-$(BASH_VER)
-	$(SCRIPTS)/build_macos_bash.sh $< $@ x86_64-apple-macos12.3
+$(WORK)/macos/x86_64/rootfs/bin/bash: $(WORK)/bash-$(BASH_VER)
+	$(SCRIPTS)/run_macos_build.sh $< x86_64 && strip $@
+
+## general macos
+
+$(WORK)/macos/rootfs/bin/%: $(WORK)/macos/arm64/rootfs/bin/% $(WORK)/macos/x86_64/rootfs/bin/%
+	mkdir -p $(dir $@) && lipo -create -output $@ $^
 
 ## Bison
 
@@ -569,6 +642,12 @@ $(WORK)/x86_64/rootfs/bin/bison: $(WORK)/bison-$(BISON_VER)
 $(WORK)/aarch64/rootfs/bin/bison: $(WORK)/bison-$(BISON_VER)
 	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_static_bison.sh $(BISON_VER)
 
+$(WORK)/macos/arm64/rootfs/bin/bison: $(WORK)/bison-$(BISON_VER)
+	$(SCRIPTS)/run_macos_build.sh $< arm64 && strip $@
+
+$(WORK)/macos/x86_64/rootfs/bin/bison: $(WORK)/bison-$(BISON_VER)
+	$(SCRIPTS)/run_macos_build.sh $< x86_64 && strip $@
+
 ## Coreutils
 
 $(WORK)/x86_64/rootfs/bin/cp: $(WORK)/coreutils-$(COREUTILS_VER)
@@ -576,6 +655,12 @@ $(WORK)/x86_64/rootfs/bin/cp: $(WORK)/coreutils-$(COREUTILS_VER)
 
 $(WORK)/aarch64/rootfs/bin/cp: $(WORK)/coreutils-$(COREUTILS_VER)
 	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_static_coreutils.sh $(COREUTILS_VER)
+
+$(COREUTILS_BINS:%=$(WORK)/macos/x86_64/rootfs/bin/%): $(WORK)/coreutils-$(COREUTILS_VER)
+	$(SCRIPTS)/run_macos_build.sh $< x86_64 && strip $@
+
+$(COREUTILS_BINS:%=$(WORK)/macos/arm64/rootfs/bin/%): $(WORK)/coreutils-$(COREUTILS_VER)
+	$(SCRIPTS)/run_macos_build.sh $< arm64 && strip $@
 
 ## Diffutils
 
@@ -585,6 +670,12 @@ $(WORK)/x86_64/rootfs/bin/diff: $(WORK)/diffutils-$(DIFFUTILS_VER)
 $(WORK)/aarch64/rootfs/bin/diff: $(WORK)/diffutils-$(DIFFUTILS_VER)
 	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_static_diffutils.sh $(DIFFUTILS_VER)
 
+$(DIFFUTILS_BINS:%=$(WORK)/macos/x86_64/rootfs/bin/%): $(WORK)/diffutils-$(DIFFUTILS_VER)
+	$(SCRIPTS)/run_macos_build.sh $< x86_64 && strip $@
+
+$(DIFFUTILS_BINS:%=$(WORK)/macos/arm64/rootfs/bin/%): $(WORK)/diffutils-$(DIFFUTILS_VER)
+	$(SCRIPTS)/run_macos_build.sh $< arm64 && strip $@
+
 ## Findutils
 
 $(WORK)/x86_64/rootfs/bin/find: $(WORK)/findutils-$(FINDUTILS_VER)
@@ -592,6 +683,12 @@ $(WORK)/x86_64/rootfs/bin/find: $(WORK)/findutils-$(FINDUTILS_VER)
 
 $(WORK)/aarch64/rootfs/bin/find: $(WORK)/findutils-$(FINDUTILS_VER)
 	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_static_findutils.sh $(FINDUTILS_VER)
+
+$(FINDUTILS_BINS:%=$(WORK)/macos/x86_64/rootfs/bin/%): $(WORK)/findutils-$(FINDUTILS_VER)
+	$(SCRIPTS)/run_macos_build.sh $< x86_64 && strip $@
+
+$(FINDUTILS_BINS:%=$(WORK)/macos/arm64/rootfs/bin/%): $(WORK)/findutils-$(FINDUTILS_VER)
+	$(SCRIPTS)/run_macos_build.sh $< arm64 && strip $@
 
 ## Flex
 
@@ -601,6 +698,12 @@ $(WORK)/x86_64/rootfs/bin/flex: $(WORK)/flex-$(FLEX_VER)
 $(WORK)/aarch64/rootfs/bin/flex: $(WORK)/flex-$(FLEX_VER)
 	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_static_flex.sh $(FLEX_VER)
 
+$(FLEX_BINS:%=$(WORK)/macos/x86_64/rootfs/bin/%): $(WORK)/flex-$(FLEX_VER)
+	$(SCRIPTS)/run_macos_build.sh $< x86_64 && strip $@
+
+$(FLEX_BINS:%=$(WORK)/macos/arm64/rootfs/bin/%): $(WORK)/flex-$(FLEX_VER)
+	$(SCRIPTS)/run_macos_build.sh $< arm64 && strip $@
+
 ## Gawk
 
 $(WORK)/x86_64/rootfs/bin/gawk: $(WORK)/gawk-$(GAWK_VER)
@@ -608,6 +711,12 @@ $(WORK)/x86_64/rootfs/bin/gawk: $(WORK)/gawk-$(GAWK_VER)
 
 $(WORK)/aarch64/rootfs/bin/gawk: $(WORK)/gawk-$(GAWK_VER)
 	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_static_gawk.sh $(GAWK_VER)
+
+$(WORK)/macos/x86_64/rootfs/bin/gawk: $(WORK)/gawk-$(GAWK_VER)
+	$(SCRIPTS)/run_macos_build.sh $< x86_64 && strip $@
+
+$(WORK)/macos/arm64/rootfs/bin/gawk: $(WORK)/gawk-$(GAWK_VER)
+	$(SCRIPTS)/run_macos_build.sh $< arm64 && strip $@
 
 ## Gperf
 
@@ -617,6 +726,12 @@ $(WORK)/x86_64/rootfs/bin/gperf: $(WORK)/gperf-$(GPERF_VER)
 $(WORK)/aarch64/rootfs/bin/gperf: $(WORK)/gperf-$(GPERF_VER)
 	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_static_gperf.sh $(GPERF_VER)
 
+$(WORK)/macos/x86_64/rootfs/bin/gperf: $(WORK)/gperf-$(GPERF_VER)
+	$(SCRIPTS)/run_macos_build.sh $< x86_64 && strip $@
+
+$(WORK)/macos/arm64/rootfs/bin/gperf: $(WORK)/gperf-$(GPERF_VER)
+	$(SCRIPTS)/run_macos_build.sh $< arm64 && strip $@
+
 ## Grep
 
 $(WORK)/x86_64/rootfs/bin/grep: $(WORK)/grep-$(GREP_VER)
@@ -624,6 +739,12 @@ $(WORK)/x86_64/rootfs/bin/grep: $(WORK)/grep-$(GREP_VER)
 
 $(WORK)/aarch64/rootfs/bin/grep: $(WORK)/grep-$(GREP_VER)
 	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_static_grep.sh $(GREP_VER)
+
+$(WORK)/macos/x86_64/rootfs/bin/grep: $(WORK)/grep-$(GREP_VER)
+	$(SCRIPTS)/run_macos_build.sh $< x86_64 && strip $@
+
+$(WORK)/macos/arm64/rootfs/bin/grep: $(WORK)/grep-$(GREP_VER)
+	$(SCRIPTS)/run_macos_build.sh $< arm64 && strip $@
 
 ## Gzip
 
@@ -633,21 +754,11 @@ $(WORK)/x86_64/rootfs/bin/gzip: $(WORK)/gzip-$(GZIP_VER)
 $(WORK)/aarch64/rootfs/bin/gzip: $(WORK)/gzip-$(GZIP_VER)
 	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_static_gzip.sh $(GZIP_VER)
 
-## Texinfo
+$(WORK)/macos/x86_64/rootfs/bin/gzip: $(WORK)/gzip-$(GZIP_VER)
+	$(SCRIPTS)/run_macos_build.sh $< x86_64 && strip $@
 
-$(WORK)/x86_64/rootfs/bin/makeinfo: $(WORK)/texinfo-$(TEXINFO_VER)
-	$(SCRIPTS)/run_linux_build.sh $(OCI) amd64 build_linux_static_texinfo.sh $(TEXINFO_VER)
-
-$(WORK)/aarch64/rootfs/bin/makeinfo: $(WORK)/texinfo-$(TEXINFO_VER)
-	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_static_texinfo.sh $(TEXINFO_VER)
-
-## Make
-
-$(WORK)/x86_64/rootfs/bin/make: $(WORK)/make-$(MAKE_VER)
-	$(SCRIPTS)/run_linux_build.sh $(OCI) amd64 build_linux_static_make.sh $(MAKE_VER)
-
-$(WORK)/aarch64/rootfs/bin/make: $(WORK)/make-$(MAKE_VER)
-	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_static_make.sh $(MAKE_VER)
+$(WORK)/macos/arm64/rootfs/bin/gzip: $(WORK)/gzip-$(GZIP_VER)
+	$(SCRIPTS)/run_macos_build.sh $< arm64 && strip $@
 
 ## M4
 
@@ -657,6 +768,26 @@ $(WORK)/x86_64/rootfs/bin/m4: $(WORK)/m4-$(M4_VER)
 $(WORK)/aarch64/rootfs/bin/m4: $(WORK)/m4-$(M4_VER)
 	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_static_m4.sh $(M4_VER)
 
+$(WORK)/macos/x86_64/rootfs/bin/m4: $(WORK)/m4-$(M4_VER)
+	$(SCRIPTS)/run_macos_build.sh $< x86_64 && strip $@
+
+$(WORK)/macos/arm64/rootfs/bin/m4: $(WORK)/m4-$(M4_VER)
+	$(SCRIPTS)/run_macos_build.sh $< arm64 && strip $@
+
+## Make
+
+$(WORK)/x86_64/rootfs/bin/make: $(WORK)/make-$(MAKE_VER)
+	$(SCRIPTS)/run_linux_build.sh $(OCI) amd64 build_linux_static_make.sh $(MAKE_VER)
+
+$(WORK)/aarch64/rootfs/bin/make: $(WORK)/make-$(MAKE_VER)
+	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_static_make.sh $(MAKE_VER)
+
+$(WORK)/macos/x86_64/rootfs/bin/make: $(WORK)/make-$(MAKE_VER)
+	$(SCRIPTS)/run_macos_build.sh $< x86_64 && strip $@
+
+$(WORK)/macos/arm64/rootfs/bin/make: $(WORK)/make-$(MAKE_VER)
+	$(SCRIPTS)/run_macos_build.sh $< arm64 && strip $@
+
 ## patch
 
 $(WORK)/x86_64/rootfs/bin/patch: $(WORK)/patch-$(PATCH_VER)
@@ -664,6 +795,12 @@ $(WORK)/x86_64/rootfs/bin/patch: $(WORK)/patch-$(PATCH_VER)
 
 $(WORK)/aarch64/rootfs/bin/patch: $(WORK)/patch-$(PATCH_VER)
 	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_static_patch.sh $(PATCH_VER)
+
+$(WORK)/macos/x86_64/rootfs/bin/patch: $(WORK)/patch-$(PATCH_VER)
+	$(SCRIPTS)/run_macos_build.sh $< x86_64 && strip $@
+
+$(WORK)/macos/arm64/rootfs/bin/patch: $(WORK)/patch-$(PATCH_VER)
+	$(SCRIPTS)/run_macos_build.sh $< arm64 && strip $@
 
 ## patchelf
 
@@ -697,6 +834,12 @@ $(WORK)/x86_64/rootfs/bin/sed: $(WORK)/sed-$(SED_VER)
 $(WORK)/aarch64/rootfs/bin/sed: $(WORK)/sed-$(SED_VER)
 	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_static_sed.sh $(SED_VER)
 
+$(WORK)/macos/x86_64/rootfs/bin/sed: $(WORK)/sed-$(SED_VER)
+	$(SCRIPTS)/run_macos_build.sh $< x86_64 && strip $@
+
+$(WORK)/macos/arm64/rootfs/bin/sed: $(WORK)/sed-$(SED_VER)
+	$(SCRIPTS)/run_macos_build.sh $< arm64 && strip $@
+
 ## tar
 
 $(WORK)/x86_64/rootfs/bin/tar: $(WORK)/tar-$(TAR_VER)
@@ -705,6 +848,20 @@ $(WORK)/x86_64/rootfs/bin/tar: $(WORK)/tar-$(TAR_VER)
 $(WORK)/aarch64/rootfs/bin/tar: $(WORK)/tar-$(TAR_VER)
 	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_static_tar.sh $(TAR_VER)
 
+$(WORK)/macos/x86_64/rootfs/bin/tar: $(WORK)/tar-$(TAR_VER)
+	$(SCRIPTS)/run_macos_build.sh $< x86_64 && strip $@
+
+$(WORK)/macos/arm64/rootfs/bin/tar: $(WORK)/tar-$(TAR_VER)
+	$(SCRIPTS)/run_macos_build.sh $< arm64 && strip $@
+
+## Texinfo
+
+$(WORK)/x86_64/rootfs/bin/makeinfo: $(WORK)/texinfo-$(TEXINFO_VER)
+	$(SCRIPTS)/run_linux_build.sh $(OCI) amd64 build_linux_static_texinfo.sh $(TEXINFO_VER)
+
+$(WORK)/aarch64/rootfs/bin/makeinfo: $(WORK)/texinfo-$(TEXINFO_VER)
+	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_static_texinfo.sh $(TEXINFO_VER)
+
 ## xz
 
 $(WORK)/x86_64/rootfs/bin/xz: $(WORK)/xz-$(XZ_VER)
@@ -712,6 +869,21 @@ $(WORK)/x86_64/rootfs/bin/xz: $(WORK)/xz-$(XZ_VER)
 
 $(WORK)/aarch64/rootfs/bin/xz: $(WORK)/xz-$(XZ_VER)
 	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_static_xz.sh $(XZ_VER)
+
+## Macos bootstrap
+
+$(DIST)/macos_bootstrap_$(DATE).tar.xz: $(WORK)/macos_bootstrap
+	tar -C $< -cJf $@ .
+
+CLI_TOOLS_PATH = /Library/Developer/CommandLineTools
+$(WORK)/macos_bootstrap:
+	mkdir -p $@/SDKs && \
+	cp -rn $(CLI_TOOLS_PATH)/usr $@ || true && \
+	cp -r $(CLI_TOOLS_PATH)/Library $@ || true && \
+	cp -r $(CLI_TOOLS_PATH)/SDKs/MacOSX13.0.sdk $@/SDKs || true && \
+	cd $@/SDKs && \
+	ln -s MacOSX13.0.sdk MacOSX13.sdk && \
+	ln -s MacOSX13.sdk MacOSX.sdk
 
 ## Musl toolchain
 
@@ -778,6 +950,11 @@ $(DIST)/static_tools_linux_aarch64_$(DATE).tar.xz: static_tools_arm64
 
 $(DIST)/static_tools_linux_x86_64_$(DATE).tar.xz: static_tools_amd64
 	tar -C $(WORK)/x86_64/rootfs -cJf $@ .
+
+# FIXME - grab the other dirs like lib and include from one of the arch-specific subdirs
+# just do an rsync on the bin dir too, should grab missed scripts.  Executables are already defined.
+$(DIST)/static_tools_macos_universal_$(DATE).tar.xz: static_tools_macos
+	tar -C $(WORK)/macos/rootfs -cJf $@ .
 
 # Sources
 

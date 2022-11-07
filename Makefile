@@ -875,7 +875,8 @@ $(DIST)/macos_bootstrap_$(DATE).tar.xz: $(WORK)/macos_bootstrap
 CLI_TOOLS_PATH = /Library/Developer/CommandLineTools
 $(WORK)/macos_bootstrap:
 	mkdir -p $@/SDKs && \
-	cp -rn $(CLI_TOOLS_PATH)/usr $@ || true && \
+	cp -r $(CLI_TOOLS_PATH)/usr $@ || true && \
+	cp -r /usr/bin/xc* $@/usr || true && \
 	cp -r $(CLI_TOOLS_PATH)/Library $@ || true && \
 	cp -r $(CLI_TOOLS_PATH)/SDKs/MacOSX13.0.sdk $@/SDKs || true && \
 	cd $@/SDKs && \

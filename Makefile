@@ -24,7 +24,7 @@ VOLMOUNT=/bootstrap
 # diff: diffutils
 # find: findutils
 # makeinfo: texinfo
-STATIC_TOOLS:=bash bison cp diff find flex gawk gperf grep gzip m4 make makeinfo patch patchelf perl python3 sed tar xz
+BOOTSTRAP_TOOLS:=bash bison cp diff find flex gawk gperf grep gzip m4 make makeinfo patch patchelf perl python3 sed tar xz
 
 # Package versions
 BASH_VER=5.1.16
@@ -56,7 +56,7 @@ XZ_VER=5.2.6
 all: dist
 
 .PHONY: clean
-clean: clean_dist clean_bash clean_glibc_toolchain clean_macos_bootstrap clean_static_tools clean_toybox
+clean: clean_dist clean_bash clean_glibc_toolchain clean_macos_bootstrap clean_bootstrap_tools clean_toybox
 
 .PHONY: clean_sources
 clean_sources:
@@ -70,7 +70,7 @@ dirs:
 	mkdir -p $(DIST) $(SOURCES) $(WORK)
 
 .PHONY: dist
-dist: bash_dist glibc_toolchain_dist macos_bootstrap_dist musl_toolchain_dist static_tools_dist toybox_dist
+dist: bash_dist glibc_toolchain_dist macos_bootstrap_dist musl_toolchain_dist bootstrap_tools_dist toybox_dist
 
 .PHONY: images
 images: image_amd64 image_arm64
@@ -123,20 +123,20 @@ clean_macos_bootstrap:
 
 # Static tools
 
-.PHONY: static_tools
-static_tools: static_tools_amd64 static_tools_arm64 static_tools_macos
+.PHONY: bootstrap_tools
+bootstrap_tools: bootstrap_tools_amd64 bootstrap_tools_arm64 bootstrap_tools_macos
 
-.PHONY: static_tools_amd64
-static_tools_amd64: $(STATIC_TOOLS:%=$(WORK)/x86_64/rootfs/bin/%)
+.PHONY: bootstrap_tools_amd64
+bootstrap_tools_amd64: $(BOOTSTRAP_TOOLS:%=$(WORK)/x86_64/rootfs/bin/%)
 
-.PHONY: static_tools_arm64
-static_tools_arm64: $(STATIC_TOOLS:%=$(WORK)/aarch64/rootfs/bin/%)
+.PHONY: bootstrap_tools_arm64
+bootstrap_tools_arm64: $(BOOTSTRAP_TOOLS:%=$(WORK)/aarch64/rootfs/bin/%)
 
-.PHONY: static_tools_macos
-static_tools_macos: $(STATIC_TOOLS:%=$(WORK)/macos/rootfs/bin/%)
+.PHONY: bootstrap_tools_macos
+bootstrap_tools_macos: $(BOOTSTRAP_TOOLS:%=$(WORK)/macos/rootfs/bin/%)
 
-.PHONY: clean_static_tools
-clean_static_tools:
+.PHONY: clean_bootstrap_tools
+clean_bootstrap_tools:
 	rm -rfv $(WORK)/{aarch64,x86_64,macos}
 
 # Toybox
@@ -186,17 +186,17 @@ linux_headers_amd64_dist: $(DIST)/linux_headers_$(LINUX_VER)_x86_64_$(DATE).tar.
 .PHONY: linux_headers_arm64_dist
 linux_headers_arm64_dist: $(DIST)/linux_headers_$(LINUX_VER)_aarch64_$(DATE).tar.xz
 
-.PHONY: static_tools_dist
-static_tools_dist: static_tools_amd64_dist static_tools_arm64_dist static_tools_macos_dist
+.PHONY: bootstrap_tools_dist
+bootstrap_tools_dist: bootstrap_tools_amd64_dist bootstrap_tools_arm64_dist bootstrap_tools_macos_dist
 
-.PHONY: static_tools_amd64_dist
-static_tools_amd64_dist: $(DIST)/static_tools_linux_x86_64_$(DATE).tar.xz 
+.PHONY: bootstrap_tools_amd64_dist
+bootstrap_tools_amd64_dist: $(DIST)/bootstrap_tools_linux_x86_64_$(DATE).tar.xz 
 
-.PHONY: static_tools_arm64_dist
-static_tools_arm64_dist: $(DIST)/static_tools_linux_aarch64_$(DATE).tar.xz 
+.PHONY: bootstrap_tools_arm64_dist
+bootstrap_tools_arm64_dist: $(DIST)/bootstrap_tools_linux_aarch64_$(DATE).tar.xz 
 
-.PHONY: static_tools_macos_dist
-static_tools_macos_dist: $(DIST)/static_tools_macos_universal_$(DATE).tar.xz
+.PHONY: bootstrap_tools_macos_dist
+bootstrap_tools_macos_dist: $(DIST)/bootstrap_tools_macos_universal_$(DATE).tar.xz
 
 .PHONY: toybox_dist
 toybox_dist: $(DIST)/toybox_linux_aarch64_$(DATE).tar.xz $(DIST)/toybox_linux_x86_64_$(DATE).tar.xz $(DIST)/toybox_macos_universal_$(DATE).tar.xz
@@ -942,15 +942,15 @@ $(WORK)/toybox_macos_x86:
 
 ## Static Tools
 
-$(DIST)/static_tools_linux_aarch64_$(DATE).tar.xz: static_tools_arm64
+$(DIST)/bootstrap_tools_linux_aarch64_$(DATE).tar.xz: bootstrap_tools_arm64
 	tar -C $(WORK)/aarch64/rootfs -cJf $@ .
 
-$(DIST)/static_tools_linux_x86_64_$(DATE).tar.xz: static_tools_amd64
+$(DIST)/bootstrap_tools_linux_x86_64_$(DATE).tar.xz: bootstrap_tools_amd64
 	tar -C $(WORK)/x86_64/rootfs -cJf $@ .
 
 # FIXME - grab the other dirs like lib and include from one of the arch-specific subdirs
 # just do an rsync on the bin dir too, should grab missed scripts.  Executables are already defined.
-$(DIST)/static_tools_macos_universal_$(DATE).tar.xz: static_tools_macos
+$(DIST)/bootstrap_tools_macos_universal_$(DATE).tar.xz: bootstrap_tools_macos
 	tar -C $(WORK)/macos/rootfs -cJf $@ .
 
 # Sources

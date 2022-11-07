@@ -21,8 +21,8 @@ To build everything, run `make`. This will produce a set of compressed tarballs 
 Other usage options include:
 
 - Enumerate all available targets: `make list`. Use `make list | xargs` to see on a single line.
-- Build the static tools bundle for both architectures: `make static_tools`.
-- Build the static tools bundle for `amd64`: `make static_tools_amd64`.
+- Build the static tools bundle for both architectures: `make bootstrap_tools`.
+- Build the static tools bundle for `amd64`: `make bootstrap_tools_amd64`.
 - Build a package: `make bison_linux_arm64`.
 - Clean a package: `make clean_bison`.
 

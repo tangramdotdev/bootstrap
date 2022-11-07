@@ -172,7 +172,7 @@ glibc_toolchain_dist_amd64: $(DIST)/glibc_toolchain_x86_64_$(DATE).tar.xz
 glibc_toolchain_dist_arm64: $(DIST)/glibc_toolchain_aarch64_$(DATE).tar.xz 
 
 .PHONY: macos_bootstrap_dist
-macos_bootstrap_dist: $(DIST)/macos_bootstrap_$(DATE).tar.xz
+macos_bootstrap_dist: $(DIST)/macos_bootstrap_$(DATE).tar.zstd
 
 .PHONY: musl_toolchain_dist
 musl_toolchain_dist: $(DIST)/musl_toolchain_linux_aarch64_$(DATE).tar.xz $(DIST)/musl_toolchain_linux_x86_64_$(DATE).tar.xz
@@ -869,19 +869,20 @@ $(WORK)/aarch64/rootfs/bin/xz: $(WORK)/xz-$(XZ_VER)
 
 ## Macos bootstrap
 
-$(DIST)/macos_bootstrap_$(DATE).tar.xz: $(WORK)/macos_bootstrap
-	tar -C $< -cJf $@ .
+$(DIST)/macos_bootstrap_$(DATE).tar.zstd: $(WORK)/macos_bootstrap
+	tar -C $< --zstd -cf $@ .
 
 CLI_TOOLS_PATH = /Library/Developer/CommandLineTools
 $(WORK)/macos_bootstrap:
 	mkdir -p $@/SDKs && \
 	cp -r $(CLI_TOOLS_PATH)/usr $@ || true && \
-	cp -r /usr/bin/xc* $@/usr || true && \
+	cp -r /usr/bin/{libtool,xc*} $@/usr || true && \
 	cp -r $(CLI_TOOLS_PATH)/Library $@ || true && \
 	cp -r $(CLI_TOOLS_PATH)/SDKs/MacOSX13.0.sdk $@/SDKs || true && \
 	cd $@/SDKs && \
 	ln -s MacOSX13.0.sdk MacOSX13.sdk && \
-	ln -s MacOSX13.sdk MacOSX.sdk
+	ln -s MacOSX13.sdk MacOSX.sdk && \
+	rm -rfv $@/usr/{bin,lib}/swift*
 
 ## Musl toolchain
 

@@ -42,6 +42,7 @@ M4_VER=1.4.19
 MAKE_VER=4.3
 PATCH_VER=2.7.6
 PATCHELF_VER=0.15.0
+PERL_VER=5.36.0
 PYTHON_VER=3.11.0
 SED_VER=4.8
 STATICPERL_VER=1.46
@@ -368,7 +369,7 @@ grep_linux_amd64: $(WORK)/x86_64/rootfs/bin/grep
 grep_linux_arm64: $(WORK)/aarch64/rootfs/bin/grep
 
 .PHONY: grep_macos
-grep_macos: $(WORK)/macos/rootfs/bin/grep
+grep_macos: pcre_macos $(WORK)/macos/rootfs/bin/grep
 
 .PHONY: clean_grep
 clean_grep:
@@ -487,6 +488,9 @@ perl_linux_amd64: $(WORK)/x86_64/rootfs/bin/perl
 
 .PHONY: perl_linux_arm64
 perl_linux_arm64: $(WORK)/aarch64/rootfs/bin/perl
+
+.PHONY: perl_macos
+perl_macos: ${WORK}/macos/rootfs/bin/perl
 
 .PHONY: clean_perl
 clean_perl:
@@ -815,6 +819,12 @@ $(WORK)/x86_64/rootfs/bin/perl: $(WORK)/staticperl
 $(WORK)/aarch64/rootfs/bin/perl: $(WORK)/staticperl
 	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_static_perl.sh
 
+$(WORK)/macos/x86_64/rootfs/bin/perl: $(WORK)/perl-$(PERL_VER)
+	$(SCRIPTS)/build_macos_perl.sh $< x86_64 && strip $@
+
+$(WORK)/macos/arm64/rootfs/bin/perl: $(WORK)/perl-$(PERL_VER)
+	$(SCRIPTS)/build_macos_perl.sh $< arm64 && strip $@
+
 ## Python
 
 $(WORK)/x86_64/rootfs/bin/python3: $(WORK)/Python-$(PYTHON_VER)
@@ -950,9 +960,8 @@ $(DIST)/bootstrap_tools_linux_aarch64_$(DATE).tar.xz: bootstrap_tools_arm64
 $(DIST)/bootstrap_tools_linux_x86_64_$(DATE).tar.xz: bootstrap_tools_amd64
 	tar -C $(WORK)/x86_64/rootfs -cJf $@ .
 
-# FIXME - grab the other dirs like lib and include from one of the arch-specific subdirs
-# just do an rsync on the bin dir too, should grab missed scripts.  Executables are already defined.
-$(DIST)/bootstrap_tools_macos_universal_$(DATE).tar.xz: bootstrap_tools_macos
+$(DIST)/bootst/rap_tools_macos_universal_$(DATE).tar.xz: bootstrap_tools_macos
+	cp -r $(WORK)/macos/arm64/rootfs/{etc,include,lib,libexec,share,var} $(WORK)/macos/rootfs && \
 	tar -C $(WORK)/macos/rootfs -cJf $@ .
 
 # Sources
@@ -1034,6 +1043,9 @@ $(SOURCES)/patch-$(PATCH_VER).tar.xz:
 
 $(SOURCES)/patchelf-$(PATCHELF_VER).tar.bz2:
 	wget -O $@ https://github.com/NixOS/patchelf/releases/download/$(PATCHELF_VER)/patchelf-$(PATCHELF_VER).tar.bz2
+
+$(SOURCES)/perl-$(PERL_VER).tar.gz:
+	wget -O $@ https://www.cpan.org/src/5.0/perl-$(PERL_VER).tar.gz
 
 $(SOURCES)/Python-$(PYTHON_VER).tar.xz:
 	wget -O $@ https://www.python.org/ftp/python/$(PYTHON_VER)/Python-$(PYTHON_VER).tar.xz

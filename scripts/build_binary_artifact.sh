@@ -8,5 +8,5 @@ TMP=$(mktemp -d)
 
 mkdir -p "$TMP"/bin
 cp "$exe" "$TMP"/bin/"$out"
-tar -C "$TMP" -cJf "$destination" .
+tar -C "$TMP" --zstd -cf "$destination" .
 rm -rf "$TMP"

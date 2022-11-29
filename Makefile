@@ -661,6 +661,8 @@ $(WORK)/macos/x86_64/rootfs/bin/autoreconf: $(WORK)/autoconf-$(AUTOCONF_VER)
 $(WORK)/macos/arm64/rootfs/bin/autoreconf: $(WORK)/autoconf-$(AUTOCONF_VER)
 	$(SCRIPTS)/run_macos_build.sh $< arm64 && strip $@
 
+$(WORK)/%/rootfs/share/autoconf/Autom4te/Config.pm: $(WORK)/%/rootfs/bin/autoreconf
+
 ## Automake
 
 $(WORK)/x86_64/rootfs/bin/aclocal: $(WORK)/automake-$(AUTOMAKE_VER)
@@ -674,6 +676,8 @@ $(WORK)/macos/x86_64/rootfs/bin/aclocal: $(WORK)/automake-$(AUTOMAKE_VER)
 
 $(WORK)/macos/arm64/rootfs/bin/aclocal: $(WORK)/automake-$(AUTOMAKE_VER)
 	$(SCRIPTS)/run_macos_build.sh $< arm64 && strip $@
+
+$(WORK)/%/rootfs/share/automake-1.16/Automake/Config.pm: $(WORK)/%/rootfs/bin/aclocal
 
 ## Bash
 
@@ -887,10 +891,10 @@ $(WORK)/aarch64/rootfs/bin/patchelf: $(WORK)/patchelf-$(PATCHELF_VER)
 
 ## Perl
 
-$(WORK)/x86_64/rootfs/bin/perl: $(WORK)/staticperl
+$(WORK)/x86_64/rootfs/bin/perl: $(WORK)/staticperl $(WORK)/x86_64/rootfs/share/automake-1.16/Automake/Config.pm $(WORK)/x86_64/rootfs/share/autoconf/Autom4te/Config.pm 
 	$(SCRIPTS)/run_linux_build.sh $(OCI) amd64 build_linux_static_perl.sh
 
-$(WORK)/aarch64/rootfs/bin/perl: $(WORK)/staticperl
+$(WORK)/aarch64/rootfs/bin/perl: $(WORK)/staticperl $(WORK)/aarch64/rootfs/share/automake-1.16/Automake/Config.pm $(WORK)/aarch64/rootfs/share/autoconf/Autom4te/Config.pm 
 	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_static_perl.sh
 
 $(WORK)/macos/x86_64/rootfs/bin/perl: $(WORK)/perl-$(PERL_VER)

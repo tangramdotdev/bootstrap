@@ -46,6 +46,7 @@ GZIP_VER=1.12
 LINUX_VER=6.0.5
 M4_VER=1.4.19
 MAKE_VER=4.3
+MUSL_VER=1.2.3
 PATCH_VER=2.7.6
 PATCHELF_VER=0.15.0
 PERL_VER=5.36.0
@@ -488,6 +489,21 @@ linux_headers_arm64: $(WORK)/aarch64/linux_headers
 clean_linux_headers:
 	rm -rfv $(WORK)/x86_64/linux* $(WORK)/aarch64/linux*
 
+## musl
+
+.PHONY: musl
+glibc: musl_linux_amd64 musl_linux_arm64
+
+.PHONY: musl_linux_amd64
+msul_linux_amd64: $(WORK)/x86_64/rootfs/lib/ld-musl-x86_64.so.1
+
+.PHONY: musl_linux_arm64
+musl_linux_arm64: $(WORK)/aarch64/rootfs/lib/ld-musl-aarch64.so.1
+
+.PHONY: clean_musl
+clean_musl:
+	rm -rfv $(WORK)/musl* $(WORK)/aarch64/rootfs/lib/ld-musl-aarch64.so.1 $(WORK)/x86_64/rootfs/lib/ld-musl-x86_64.so.1
+
 ## patch
 
 .PHONY: patch
@@ -867,6 +883,14 @@ $(WORK)/macos/x86_64/rootfs/bin/make: $(WORK)/make-$(MAKE_VER)
 $(WORK)/macos/arm64/rootfs/bin/make: $(WORK)/make-$(MAKE_VER)
 	$(SCRIPTS)/run_macos_build.sh $< arm64 && strip $@
 
+## musl
+
+$(WORK)/x86_64/rootfs/lib/ld-musl-x86_64.so.1: $(WORK)/musl-$(MUSL_VER)
+	$(SCRIPTS)/run_linux_build.sh $(OCI) amd64 build_linux_musl.sh $(GLIBC_VER)
+
+$(WORK)/aarch64/rootfs/lib/ld-musl-aarch64.so.1: $(WORK)/musl-$(MUSL_VER)
+	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_musl.sh $(MUSL_VER)
+
 ## patch
 
 $(WORK)/x86_64/rootfs/bin/patch: $(WORK)/patch-$(PATCH_VER)
@@ -1121,6 +1145,9 @@ $(SOURCES)/make-$(MAKE_VER).tar.lz:
 
 $(SOURCES)/m4-$(M4_VER).tar.xz:
 	wget -O $@ https://ftp.gnu.org/gnu/m4/m4-$(M4_VER).tar.xz
+
+$(SOURCES)/musl-$(MUSL_VER).tar.xz:
+	wget -O $@ https://musl.libc.org/releases/musl-$(MUSL_VER).tar.gz
 
 $(SOURCES)/patch-$(PATCH_VER).tar.xz:
 	wget -O $@ https://ftp.gnu.org/gnu/patch/patch-$(PATCH_VER).tar.xz

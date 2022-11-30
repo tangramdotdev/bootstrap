@@ -52,7 +52,6 @@ PATCHELF_VER=0.15.0
 PERL_VER=5.36.0
 PYTHON_VER=3.11.0
 SED_VER=4.8
-STATICPERL_VER=1.46
 TAR_VER=1.34
 TEXINFO_VER=6.8
 TOYBOX_VER=0.8.8
@@ -915,11 +914,11 @@ $(WORK)/aarch64/rootfs/bin/patchelf: $(WORK)/patchelf-$(PATCHELF_VER)
 
 ## Perl
 
-$(WORK)/x86_64/rootfs/bin/perl: $(WORK)/staticperl $(WORK)/x86_64/rootfs/share/automake-1.16/Automake/Config.pm $(WORK)/x86_64/rootfs/share/autoconf/Autom4te/Config.pm 
-	$(SCRIPTS)/run_linux_build.sh $(OCI) amd64 build_linux_static_perl.sh
+$(WORK)/x86_64/rootfs/bin/perl: $(WORK)/perl-$(PERL_VER) $(WORK)/x86_64/rootfs/lib/ld-musl-x86_64.so.1
+	$(SCRIPTS)/run_linux_build.sh $(OCI) amd64 build_linux_perl.sh $(PERL_VER)
 
-$(WORK)/aarch64/rootfs/bin/perl: $(WORK)/staticperl $(WORK)/aarch64/rootfs/share/automake-1.16/Automake/Config.pm $(WORK)/aarch64/rootfs/share/autoconf/Autom4te/Config.pm 
-	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_static_perl.sh
+$(WORK)/aarch64/rootfs/bin/perl: $(WORK)/perl-$(PERL_VER) $(WORK)/aarch64/rootfs/lib/ld-musl-aarch64.so.1
+	$(SCRIPTS)/run_linux_build.sh $(OCI) arm64 build_linux_perl.sh $(PERL_VER)
 
 $(WORK)/macos/x86_64/rootfs/bin/perl: $(WORK)/perl-$(PERL_VER)
 	$(SCRIPTS)/build_macos_perl.sh $< x86_64 && strip $@

@@ -18,7 +18,7 @@ sh "$1"/Configure \
 	-Dmksymlinks \
 	-Dusethreads \
 	-Duserelocatableinc \
-	-Doptimizie="-target ${target} -O3 -pipe -fstack-protector -fwrapv -fno-strict-aliasing" \
+	-Doptimize="-target ${target} -O3 -pipe -fstack-protector -fwrapv -fno-strict-aliasing" \
 	-Dprefix="$PREFIX"
 make -j"$(nproc)"
 make install

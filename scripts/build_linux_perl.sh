@@ -1,21 +1,27 @@
 #!/bin/bash
 # This script builds a macos executable for the passed target.
 set -euo pipefail
-wrapInterpreter() {
-	mv "$1" ."$1"
-	cat > "$1" << EOW
-	#!/bin/sh
-	DIR=\$(cd -- "\${0%/*}" && pwd)
-	ARCH=$(uname -m)
-	"\${DIR}/../lib/ld-musl-\${ARCH}.so.1" --library-path "\${DIR}/lib" "\${DIR}/.${1}" -- "\$@"
-EOW
-	chmod +x "$1"
-}
-source /envfile
 name="perl"
 version="$1"
 pkg="${name}-${version}"
 shift
+wrapInterpreter() {
+	mv "$1" ."$1"
+	cat > "$1" << EOW
+#!/bin/bash
+DIR="\$(cd -- "\$(dirname -- "\${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+ARCH="\$(uname -m)"
+ACLOCAL_AUTOMAKE_DIR="\${DIR}/../share/aclocal-1.16"
+ACLOCAL_PATH="\${DIR}/../share/aclocal"
+PERL5LIB="\${DIR}/../lib/perl5/$version:\${DIR}/../share/aclocal-1.16:\${DIR}/../share/autoconf:\${DIR}/../share/automake-1.16"
+export ACLOCAL_AUTOMAKE_DIR
+export ACLOCAL_PATH
+export PERL5LIB
+"\${DIR}/../lib/ld-musl-\${ARCH}.so.1" --library-path "\${DIR}/../lib" "\${DIR}/.${1}" "\$@"
+EOW
+	chmod +x "$1"
+}
+source /envfile
 TMP=$(mktemp -d)
 cd "$TMP" || exit
 sh "$WORK"/"$pkg"/Configure \

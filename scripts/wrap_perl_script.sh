@@ -6,8 +6,12 @@ filename=${1##*/}
 cd "$dirname" || exit
 mv "$filename" ".$filename"
 cat > "$filename" << EOW
-#!/bin/sh
-DIR=\$(cd -- "\${0%/*}" && pwd)
-"\${DIR}/perl" "\${DIR}/.$filename" -- "\$@"
+#!/bin/bash
+DIR="\$(cd -- "\$(dirname -- "\${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+ACLOCAL_AUTOMAKE_DIR="\${DIR}/../share/aclocal-1.16"
+ACLOCAL_PATH="\${DIR}/../share/aclocal"
+export ACLOCAL_AUTOMAKE_DIR
+export ACLOCAL_PATH
+"\${DIR}/perl" "\${DIR}/.$filename" "\$@"
 EOW
 chmod +x "$filename"

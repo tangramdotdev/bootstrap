@@ -18,14 +18,6 @@ pub struct ToolContext {
 impl ToolContext {
 	#[must_use]
 	pub fn get() -> Self {
-		// Get the path to current artifact. Since this binary is placed in a `bin/` directory, we look two levels above the current executable.
-		// let current_exe = std::env::current_exe().expect("failed to get current executable path");
-		// let exe_dir = current_exe
-		// 	.parent()
-		// 	.expect("failed to get current executable dir");
-
-		// Get all the dependency paths from the provided compile-time environment variables. These paths are constructed when the `linker_wrapper` artifact is created.
-
 		let static_cc = which("gcc").unwrap();
 
 		let scripts = std::env::var("SCRIPTS");

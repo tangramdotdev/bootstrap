@@ -8,6 +8,6 @@ for FILE in makeinfo pod2texi texi2any;  do
 	"$SCRIPTS"/wrap_perl_script.sh "${ROOTFS}/bin/${FILE}"
 done
 shellscripts=(pdftexi2dvi texi2dvi texi2pdf texindex)
-for script in "${shellscripts[@]}"; do
-	"$SCRIPTS"/wrap_bash_script.sh "./${script}"
+for FILE in "${shellscripts[@]}"; do
+	"$SCRIPTS"/wrap_bash_script.sh "${ROOTFS}/bin/${FILE}"
 done

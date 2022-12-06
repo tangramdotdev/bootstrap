@@ -37,7 +37,3 @@ perlscripts=(corelist cpan enc2xs encguess h2ph h2xs json_pp instmodsh libnetcfg
 for script in "${perlscripts[@]}"; do
 	"$SCRIPTS"/wrap_perl_script.sh "./${script}"
 done
-shellscripts=(texi2dvi texi2pdf texi2index)
-for script in "${shellscripts[@]}"; do
-	"$SCRIPTS"/wrap_bash_script.sh "./${script}"
-done

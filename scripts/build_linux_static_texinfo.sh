@@ -7,4 +7,7 @@ strip "${ROOTFS}/bin/install-info"
 for FILE in makeinfo pod2texi texi2any;  do
 	"$SCRIPTS"/wrap_perl_script.sh "${ROOTFS}/bin/${FILE}"
 done
-# pdftexi2dvi texi2dvi texi2pdf texindex are shell scripts
+shellscripts=(pdftexi2dvi texi2dvi texi2pdf texi2index)
+for script in "${shellscripts[@]}"; do
+	"$SCRIPTS"/wrap_bash_script.sh "./${script}"
+done

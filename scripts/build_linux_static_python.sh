@@ -21,5 +21,4 @@ strip "${ROOTFS}/bin/python3"
 "$SCRIPTS"/wrap_python_script.sh "$ROOTFS"/bin/idle3.11
 "$SCRIPTS"/wrap_python_script.sh "$ROOTFS"/bin/pydoc3
 "$SCRIPTS"/wrap_python_script.sh "$ROOTFS"/bin/pydoc3.11
-"$SCRIPTS"/wrap_shell_script.sh "$ROOTFS"/bin/python-config
-# shell scripts: 2to3 idle3 pydoc3
+"$SCRIPTS"/wrap_bash_script.sh "$ROOTFS"/bin/python-config

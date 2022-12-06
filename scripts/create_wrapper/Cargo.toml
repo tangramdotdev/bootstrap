@@ -1,0 +1,15 @@
+[package]
+name = "create_wrapper"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap = { version = "4.0", features = ["derive"] }
+goblin = { version = "0.6.0" }
+which = { version = "4.3" }
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"

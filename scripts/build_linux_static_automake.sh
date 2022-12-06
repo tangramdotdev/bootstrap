@@ -4,7 +4,7 @@ set -euo pipefail
 source /envfile
 "$SCRIPTS"/run_linux_static_autotools_build.sh automake "$1"
 # NOTE - aclocal-1.16 and automake-1.16 are hardlinks to the non-versioned files, so relink here.
-wrapAclocal() {
+wrapAclocalScript() {
 	dirname=${1%/*}
 	filename=${1##*/}
 	cd "$dirname" || exit
@@ -14,11 +14,28 @@ wrapAclocal() {
 DIR="\$(cd -- "\$(dirname -- "\${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
 ACLOCAL_AUTOMAKE_DIR="\${DIR}/../share/aclocal-1.16"
 ACLOCAL_PATH="\${DIR}/../share/aclocal"
+autom4te_perllibdir="\${DIR}/../share/autoconf"
+AC_MACRODIR="\${DIR}/../share/autoconf"
+M4="\${DIR}/m4"
+export autom4te_perllibdir
+export AC_MACRODIR
+export M4
 export ACLOCAL_AUTOMAKE_DIR
 export ACLOCAL_PATH
 "\${DIR}/perl" "\${DIR}/.$filename" --system-acdir="\$ACLOCAL_PATH" "\$@"
 EOW
 chmod +x "$filename"
+}
+wrapAclocal() {
+	create_wrapper \
+		--flavor "script" \
+		--executable "$1" \
+		--env "ACLOCAL_AUTOMAKE_DIR=../share/aclocal-1.16" \
+		--env "ACLOCAL_PATH=../share/aclocal" \
+		--env "AC_MACRODIR=../share/autoconf" \
+		--env "autom4te_perllibdir=../share/autoconf" \
+		--env "M4=./m4" \
+		--flag "--system-acdir=$ACLOCAL_PATH"
 }
 wrapAclocal "${ROOTFS}/bin/aclocal"
 wrapAclocal "${ROOTFS}/bin/aclocal-1.16"

@@ -11,3 +11,4 @@
 /lfs/toolchain
 /lfs/tools
 /lfs/lfs*
+**/target

@@ -5,7 +5,6 @@ edition = "2021"
 
 [dependencies]
 clap = { version = "4.0", features = ["derive"] }
-goblin = { version = "0.6.0" }
 which = { version = "4.3" }
 
 [profile.dev]

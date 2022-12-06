@@ -7,4 +7,4 @@ cd "$dirname" || exit
 create_wrapper \
 	--flavor "script" \
 	--executable "$filename" \
-	--interpreter "./perl"
+	--interpreter "./bash"

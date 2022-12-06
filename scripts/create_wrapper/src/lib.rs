@@ -10,15 +10,14 @@ pub mod cgen;
 /// Common settings for a linker wrapper tool. These settings are derived primarily from compile-time environment variables.
 pub struct ToolContext {
 	pub static_cc: PathBuf,
-	pub interpreter: PathBuf,
 	pub wrapper_source: PathBuf,
-	pub sidecar_base_dir: Option<PathBuf>,
 	pub default_enable_proc_self_exe_hack: bool,
 	pub disable_wrap_executable: bool,
 }
 
 impl ToolContext {
-	#[must_use] pub fn get() -> Self {
+	#[must_use]
+	pub fn get() -> Self {
 		// Get the path to current artifact. Since this binary is placed in a `bin/` directory, we look two levels above the current executable.
 		// let current_exe = std::env::current_exe().expect("failed to get current executable path");
 		// let exe_dir = current_exe
@@ -28,12 +27,6 @@ impl ToolContext {
 		// Get all the dependency paths from the provided compile-time environment variables. These paths are constructed when the `linker_wrapper` artifact is created.
 
 		let static_cc = which("gcc").unwrap();
-
-		#[cfg(target_arch = "aarch64")]
-		let arch = "aarch64";
-		#[cfg(target_arch = "x86_64")]
-		let arch = "x86_64";
-		let interpreter = PathBuf::from(&format!("/lib/ld-musl-{arch}.so.1"));
 
 		let scripts = std::env::var("SCRIPTS");
 		let wrapper_source;
@@ -45,22 +38,17 @@ impl ToolContext {
 		};
 
 		let env_tg_linker_proc_self_exe_hack = std::env::var("TG_LINKER_PROC_SELF_EXE_HACK");
-		let default_enable_proc_self_exe_hack = matches!(env_tg_linker_proc_self_exe_hack.as_deref(), Ok("true"));
+		let default_enable_proc_self_exe_hack =
+			matches!(env_tg_linker_proc_self_exe_hack.as_deref(), Ok("true"));
 
 		let env_tg_linker_disable_wrap_executable =
 			std::env::var("TG_LINKER_DISABLE_WRAP_EXECUTABLE");
-		let disable_wrap_executable = matches!(env_tg_linker_disable_wrap_executable.as_deref(), Ok("true"));
-
-		let env_tg_linker_sidecar_base_dir = std::env::var("TG_LINKER_SIDECAR_BASE_DIR");
-		let sidecar_base_dir = env_tg_linker_sidecar_base_dir
-			.ok()
-			.map(PathBuf::from);
+		let disable_wrap_executable =
+			matches!(env_tg_linker_disable_wrap_executable.as_deref(), Ok("true"));
 
 		Self {
 			static_cc,
-			interpreter,
 			wrapper_source,
-			sidecar_base_dir,
 			default_enable_proc_self_exe_hack,
 			disable_wrap_executable,
 		}

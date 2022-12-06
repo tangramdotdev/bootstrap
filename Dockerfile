@@ -15,4 +15,5 @@ RUN echo 'export SOURCES="$VOLMOUNT/sources"' >> /envfile
 RUN echo 'export PATCHES=$VOLMOUNT/patches' >> /envfile
 RUN echo 'export BUILDS="$TOP/builds"' >> /envfile
 RUN echo 'export ROOTFS="$TOP/rootfs"' >> /envfile
+RUN echo 'export PATH="$PATH:/root/.cargo/bin"' >> /envfile
 CMD ["/bin/bash"]

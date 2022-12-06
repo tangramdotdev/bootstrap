@@ -9,13 +9,15 @@ use std::{os::unix::prelude::OsStrExt, path::Path};
 pub struct CExpr(String);
 
 impl CExpr {
+	#[must_use]
 	pub fn unescaped(value: &str) -> Self {
 		CExpr(value.to_owned())
 	}
 }
 
 /// Build an argument for a C compiler, where the macro `macro_name` is set to the given C expression. The returned argument uses the syntax `-DNAME=value`. This is meant to be used when constructing a `std::process::Command`.
-pub fn set_macro(macro_name: &str, value: CExpr) -> String {
+#[must_use]
+pub fn set_macro(macro_name: &str, value: &CExpr) -> String {
 	assert!(is_valid_c_ident(macro_name));
 
 	format!("-D{macro_name}={}", value.0)
@@ -65,6 +67,7 @@ pub fn string(bytes: impl AsRef<[u8]>) -> CExpr {
 }
 
 /// Convert a named C identifier to a C expression. This function asserts that the given name is a valid C identifier. This is useful when using a pre-defined enum value.
+#[must_use]
 pub fn ident(name: &str) -> CExpr {
 	assert!(is_valid_c_ident(name));
 
@@ -72,7 +75,7 @@ pub fn ident(name: &str) -> CExpr {
 }
 
 fn is_valid_c_ident(name: &str) -> bool {
-	name.len() > 0
+	!name.is_empty()
 		&& name.trim_start_matches(is_valid_c_ident_char).is_empty()
 		&& name.starts_with(is_valid_c_initial_ident_char)
 }
@@ -90,10 +93,12 @@ fn is_valid_c_initial_ident_char(c: char) -> bool {
 }
 
 /// Convert a boolean to a C expression. This assumes that the C code using this expression either includes `stdbool.h` or otherwise defines `true` and `false` macros/enums/constants.
+#[must_use]
 pub fn boolean(boolean: bool) -> CExpr {
-	match boolean {
-		true => ident("true"),
-		false => ident("false"),
+	if let true = boolean {
+		ident("true")
+	} else {
+		ident("false")
 	}
 }
 
@@ -115,7 +120,8 @@ pub fn tg_relative(path: impl AsRef<Path>) -> CExpr {
 }
 
 /// Convert an iterator of C expressions to a C  expression.
-pub fn env_var(key: CExpr, val: CExpr) -> CExpr {
+#[must_use]
+pub fn env_var(key: &CExpr, val: &CExpr) -> CExpr {
 	// Join each expression with a ',' and surround with '{ }'
 	CExpr(format!("(tg_env_var){{ {}, {} }}", key.0, val.0))
 }

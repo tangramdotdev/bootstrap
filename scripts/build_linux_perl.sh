@@ -33,7 +33,11 @@ rm -rf "$TMP"
 cd "$ROOTFS"/bin
 wrapInterpreter ./perl
 wrapInterpreter "perl${version}"
-perlscripts=(cpan enc2xs encguess h2ph h2xs json_pp libnetcfg perlbug perldoc perlivp perlthanks piconv pl2pm pod2html pod2man pod2text pod2usage podchecker prove ptar ptardiff ptargrep shasum splain zipdetails)
+perlscripts=(corelist cpan enc2xs encguess h2ph h2xs json_pp instmodsh libnetcfg perlbug perldoc perlivp perlthanks piconv pl2pm pod2html pod2man pod2text pod2usage podchecker prove ptar ptardiff ptargrep shasum splain streamzip xsubpp zipdetails)
 for script in "${perlscripts[@]}"; do
 	"$SCRIPTS"/wrap_perl_script.sh "./${script}"
+done
+shellscripts=(texi2dvi texi2pdf texi2index)
+for script in "${shellscripts[@]}"; do
+	"$SCRIPTS"/wrap_bash_script.sh "./${script}"
 done

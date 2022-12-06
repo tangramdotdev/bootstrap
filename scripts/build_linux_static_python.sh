@@ -15,4 +15,11 @@ export LINKFORVOLMOUNT=" "
 	LDFLAGS="-static" \
 	LINKFORVOLMOUNT=" " || true
 strip "${ROOTFS}/bin/python3"
+"$SCRIPTS"/wrap_python_script.sh "$ROOTFS"/bin/2to3
+"$SCRIPTS"/wrap_python_script.sh "$ROOTFS"/bin/2to3-3.11
+"$SCRIPTS"/wrap_python_script.sh "$ROOTFS"/bin/idle3
+"$SCRIPTS"/wrap_python_script.sh "$ROOTFS"/bin/idle3.11
+"$SCRIPTS"/wrap_python_script.sh "$ROOTFS"/bin/pydoc3
+"$SCRIPTS"/wrap_python_script.sh "$ROOTFS"/bin/pydoc3.11
+"$SCRIPTS"/wrap_shell_script.sh "$ROOTFS"/bin/python-config
 # shell scripts: 2to3 idle3 pydoc3

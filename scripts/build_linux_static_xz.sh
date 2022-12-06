@@ -11,4 +11,6 @@ source /envfile
 for FILE in lzma lzmadec lzmainfo unlzma unxz xz xzcat xzdec; do
 	strip "${ROOTFS}/bin/${FILE}"
 done
-# shell scripts: lzfgrep lzgrep lzless lzmore xzcmp xzdiff xzegrep xzfgrep xzgrep xzless xzmore
+for FILE in lzfgrep lzgrep lzless lzmore xzcmp xzdiff xzegrep xzfgrep xzgrep xzless xzmore; do
+	"$SCRIPTS"/wrap_bash_script.sh "${ROOTFS}/bin/${FILE}"
+done

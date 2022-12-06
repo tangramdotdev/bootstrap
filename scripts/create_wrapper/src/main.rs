@@ -12,8 +12,6 @@ struct Args {
 		help = "Environment to add.  `.` and `..` in the leading position are relative to the executable"
 	)]
 	env: Vec<String>,
-	#[clap(long, help = "Flag to append to the invocation")]
-	flag: Vec<String>,
 	#[clap(long, help = "The type of wrapper to produce, ld_musl or script")]
 	flavor: Flavor,
 	#[clap(long, help = "The path to the interpreter, relative to the executable")]
@@ -58,7 +56,7 @@ fn main() -> ExitCode {
 	let env_vars = cgen::array(env_vars);
 
 	// Move unwrapped file
-	let unwrapped_out_path = PathBuf::from(&format!(".{:?}", args.executable.file_name().unwrap()));
+	let unwrapped_out_path = PathBuf::from(&format!(".{}", args.executable.file_name().unwrap().to_str().unwrap()));
 	let out_path = args.executable;
 	move_file(&out_path, &unwrapped_out_path).expect("Unable to move unwrapped file");
 

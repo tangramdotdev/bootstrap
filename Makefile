@@ -77,7 +77,7 @@ endif
 all: $(ALL_HOST_COMPONENTS)
 
 ALL_PACKAGES := $(shell find $(DESTDIR) -mindepth 1 -maxdepth 1 -type d 2>/dev/null | grep -vE "\.tar\.*$$")
-TARBALLS := $(addsuffix .tar.zstd,$(ALL_PACKAGES))
+TARBALLS := $(addsuffix .tar.zst,$(ALL_PACKAGES))
 SHASUMS := $(addsuffix .sha256sum,$(TARBALLS))
 .PHONY: tarballs
 tarballs: all $(TARBALLS) $(SHASUMS)
@@ -358,12 +358,12 @@ else ifeq ($(OS),Linux)
 ROOT := $(CURDIR)
 endif
 define build_busybox_script
-$(call build_in_temp,$(1),$(2),make KBUILD_SRC="$$SOURCE" -f "$$SOURCE"/Makefile defconfig && \
+$(call build_in_temp,$(1),$(2),set +x && make KBUILD_SRC="$$SOURCE" -f "$$SOURCE"/Makefile defconfig && \
 sed -i "s/^# CONFIG_STATIC is not set$$/CONFIG_STATIC=y/" .config && \
 export TOOLCHAIN_ARCH="$$(uname -m)" && \
 export LINUX_TOOLCHAIN=$(ROOT)/$(DESTDIR)/toolchain_"$$TOOLCHAIN_ARCH"_linux && \
 export PATH="$$LINUX_TOOLCHAIN/bin:$$PATH" && \
-export CC="$$LINUX_TOOLCHAIN/bin/gcc --sysroot=$$LINUX_TOOLCHAIN -static" && \
+export CC="$$LINUX_TOOLCHAIN/bin/gcc --sysroot=$$LINUX_TOOLCHAIN -static -v" && \
 make -j$$(nproc) && \
 strip --strip-unneeded busybox && \
 mkdir -p $$TARGET/bin && \
@@ -669,11 +669,11 @@ SUPPORTED_EXTENSIONS = .tar.bz2 .tar.gz .tgz .tar.xz
 $(foreach EXT,$(SUPPORTED_EXTENSIONS),$(eval $(call unpack_tarball,$(EXT))))
 
 # Create tarballs from output directories
-$(DESTDIR)/%.tar.zstd: $(DESTDIR)/%
+$(DESTDIR)/%.tar.zst: $(DESTDIR)/%
 	@tar -cf - -C $< . | zstd -z -10 -T0 -o $@ -
 	@touch $@
 
-$(DESTDIR)/%.tar.zstd.sha256sum: $(DESTDIR)/%.tar.zstd
+$(DESTDIR)/%.tar.zst.sha256sum: $(DESTDIR)/%.tar.zst
 	@$(sha256) $< > $@
 
 # Create a fat mach-o binary from two single-arch mach-o binaries.

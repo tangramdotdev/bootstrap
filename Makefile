@@ -24,12 +24,12 @@ DASH_BASE_URL = http://gondor.apana.org.au/~herbert/dash/files
 DASH_VERSION = 0.5.12
 
 GNU_BASE_URL = https://ftp.gnu.org/gnu
-COREUTILS_VERSION = 9.4
+COREUTILS_VERSION = 9.5
 
 MUSL_CC_BASE_URL = https://musl.cc
 
 ifeq ($(OS),Darwin)
-GAWK_VERSION = 5.2.2
+GAWK_VERSION = 5.3.0
 GREP_VERSION = 3.11
 
 # NOTE - Unlike the others, this remote host doesn't provide an adjacent signature or checksum file to download.
@@ -77,7 +77,7 @@ endif
 all: $(ALL_HOST_COMPONENTS)
 
 ALL_PACKAGES := $(shell find $(DESTDIR) -mindepth 1 -maxdepth 1 -type d 2>/dev/null | grep -vE "\.tar\.*$$")
-TARBALLS := $(addsuffix .tar.zstd,$(ALL_PACKAGES))
+TARBALLS := $(addsuffix .tar.zst,$(ALL_PACKAGES))
 SHASUMS := $(addsuffix .sha256sum,$(TARBALLS))
 .PHONY: tarballs
 tarballs: all $(TARBALLS) $(SHASUMS)
@@ -439,7 +439,7 @@ $(SOURCEDIR)/busybox-$(BUSYBOX_VERSION).tar.bz2 $(SOURCEDIR)/busybox-$(BUSYBOX_V
 
 ifeq ($(OS),Darwin)
 MACOS_COMMAND_LINE_TOOLS_PATH := /Library/Developer/CommandLineTools
-MACOS_SDK_VERSIONS := 12.1 12.3 13.3 14.2
+MACOS_SDK_VERSIONS := 12.1 12.3 13.3 14.4
 
 .PHONY: $(DESTDIR)/sdk_universal_darwin
 $(DESTDIR)/sdk_universal_darwin: $(foreach VERSION,$(MACOS_SDK_VERSIONS),$(DESTDIR)/sdk_$(VERSION)_universal_darwin)
@@ -669,11 +669,11 @@ SUPPORTED_EXTENSIONS = .tar.bz2 .tar.gz .tgz .tar.xz
 $(foreach EXT,$(SUPPORTED_EXTENSIONS),$(eval $(call unpack_tarball,$(EXT))))
 
 # Create tarballs from output directories
-$(DESTDIR)/%.tar.zstd: $(DESTDIR)/%
+$(DESTDIR)/%.tar.zst: $(DESTDIR)/%
 	@tar -cf - -C $< . | zstd -z -10 -T0 -o $@ -
 	@touch $@
 
-$(DESTDIR)/%.tar.zstd.sha256sum: $(DESTDIR)/%.tar.zstd
+$(DESTDIR)/%.tar.zst.sha256sum: $(DESTDIR)/%.tar.zst
 	@$(sha256) $< > $@
 
 # Create a fat mach-o binary from two single-arch mach-o binaries.

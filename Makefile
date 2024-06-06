@@ -442,27 +442,27 @@ MACOS_COMMAND_LINE_TOOLS_PATH := /Library/Developer/CommandLineTools
 MACOS_SDK_VERSIONS := 12.1 12.3 13.3 14.4
 
 .PHONY: $(DESTDIR)/sdk_universal_darwin
-$(DESTDIR)/sdk_universal_darwin: $(foreach VERSION,$(MACOS_SDK_VERSIONS),$(DESTDIR)/sdk_$(VERSION)_universal_darwin)
+$(DESTDIR)/sdk_universal_darwin: $(foreach VERSION,$(MACOS_SDK_VERSIONS),$(DESTDIR)/macos_sdk_$(VERSION))
 
 define build_darwin_sdk_target
 .PRECIOUS: $$(BUILDDIR)/universal_darwin/sdk_$(1)
 
 .PHONY: sdk_$(1)
-sdk_$(1): $$(DESTDIR)/sdk_$(1)_universal_darwin
+sdk_$(1): $$(DESTDIR)/macos_sdk_$(1)
 
 .PHONY: clean_sdk_$(1)
 clean_sdk_$(1): clean_sdk_$(1)_dist
-	@rm -rfv $$(BUILDDIR)/universal_darwin/sdk_$(1)
+	@rm -rfv $$(BUILDDIR)/universal_darwin/macos_sdk_$(1)
 
 .PHONY: clean_sdk_$(1)_dist
 clean_sdk_$(1)_dist:
-	@rm -rfv $$(DESTDIR)/sdk_$(1)_universal_darwin
+	@rm -rfv $$(DESTDIR)/macos_sdk_$(1)
 
-$(DESTDIR)/sdk_$(1)_universal_darwin: $(BUILDDIR)/universal_darwin/sdk_$(1) $(ENVIRONMENT)
+$(DESTDIR)/macos_sdk_$(1): $(BUILDDIR)/universal_darwin/macos_sdk_$(1) $(ENVIRONMENT)
 	@mkdir -p $$(@D)
 	@cp -R $$< $$@
 
-$(BUILDDIR)/universal_darwin/sdk_$(1):
+$(BUILDDIR)/universal_darwin/macos_sdk_$(1):
 	@mkdir -p $$@
 	@cp -R $(MACOS_COMMAND_LINE_TOOLS_PATH)/SDKs/MacOSX$$*.sdk/* $$@
 endef

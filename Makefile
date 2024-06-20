@@ -486,7 +486,7 @@ $(DESTDIR)/toolchain_universal_darwin: $(BUILDDIR)/universal_darwin/toolchain $(
 
 $(BUILDDIR)/universal_darwin/toolchain:
 	@mkdir -p $@
-	@cp -R $(MACOS_COMMAND_LINE_TOOLS_PATH)/usr/* $@
+	@cp -R /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/* $@
 endif
 
 ## macOS utils

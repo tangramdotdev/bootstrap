@@ -33,9 +33,9 @@ GAWK_VERSION = 5.3.0
 GREP_VERSION = 3.11
 
 # NOTE - Unlike the others, this remote host doesn't provide an adjacent signature or checksum file to download.
-TOYBOX_SHA256SUM = d3afee05ca90bf425ced73f527e418fecd626c5340b5f58711a14531f8d7d108
+TOYBOX_SHA256SUM = 15aa3f832f4ec1874db761b9950617f99e1e38144c22da39a71311093bfe67dc
 TOYBOX_BASE_URL = http://landley.net/toybox/downloads
-TOYBOX_VERSION = 0.8.10
+TOYBOX_VERSION = 0.8.11
 endif
 
 # Managed directories
@@ -78,9 +78,15 @@ all: $(ALL_HOST_COMPONENTS)
 
 ALL_PACKAGES := $(shell find $(DESTDIR) -mindepth 1 -maxdepth 1 -type d 2>/dev/null | grep -vE "\.tar\.*$$")
 TARBALLS := $(addsuffix .tar.zst,$(ALL_PACKAGES))
-SHASUMS := $(addsuffix .sha256sum,$(TARBALLS))
+SHASUMS := $(DESTDIR)/SHASUMS256.txt
 .PHONY: tarballs
 tarballs: all $(TARBALLS) $(SHASUMS)
+
+.PHONY: shasums
+shasums: $(SHASUMS)
+
+$(SHASUMS): $(TARBALLS)
+	$(sha256) $(DESTDIR)/*.tar.zst > $@
 
 # On MacOS, additionally build all components for all other platforms.
 ifeq ($(OS),Darwin)
@@ -439,13 +445,18 @@ $(SOURCEDIR)/busybox-$(BUSYBOX_VERSION).tar.bz2 $(SOURCEDIR)/busybox-$(BUSYBOX_V
 
 ifeq ($(OS),Darwin)
 MACOS_COMMAND_LINE_TOOLS_PATH := /Library/Developer/CommandLineTools
-MACOS_SDK_VERSIONS := 12.1 12.3 13.3 14.4
+MACOS_SDK_VERSIONS := 12.1 12.3 13.3 14.4 14.5
 
 .PHONY: $(DESTDIR)/sdk_universal_darwin
 $(DESTDIR)/sdk_universal_darwin: $(foreach VERSION,$(MACOS_SDK_VERSIONS),$(DESTDIR)/macos_sdk_$(VERSION))
 
 define build_darwin_sdk_target
-.PRECIOUS: $$(BUILDDIR)/universal_darwin/sdk_$(1)
+
+ifeq ($(1),14.5)
+	SDK_PATH := /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.5.sdk
+else
+	SDK_PATH := $(MACOS_COMMAND_LINE_TOOLS_PATH)/SDKs/MacOSX$(1).sdk
+endif
 
 .PHONY: sdk_$(1)
 sdk_$(1): $$(DESTDIR)/macos_sdk_$(1)
@@ -464,7 +475,7 @@ $(DESTDIR)/macos_sdk_$(1): $(BUILDDIR)/universal_darwin/macos_sdk_$(1) $(ENVIRON
 
 $(BUILDDIR)/universal_darwin/macos_sdk_$(1):
 	@mkdir -p $$@
-	@cp -R $(MACOS_COMMAND_LINE_TOOLS_PATH)/SDKs/MacOSX$$*.sdk/* $$@
+	@cp -R $$(SDK_PATH)/* $$@
 endef
 
 $(foreach VERSION,$(MACOS_SDK_VERSIONS),$(eval $(call build_darwin_sdk_target,$(VERSION))))
@@ -475,7 +486,7 @@ $(DESTDIR)/toolchain_universal_darwin: $(BUILDDIR)/universal_darwin/toolchain $(
 
 $(BUILDDIR)/universal_darwin/toolchain:
 	@mkdir -p $@
-	@cp -R $(MACOS_COMMAND_LINE_TOOLS_PATH)/usr/* $@
+	@cp -R /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/* $@
 endif
 
 ## macOS utils
@@ -670,7 +681,7 @@ $(foreach EXT,$(SUPPORTED_EXTENSIONS),$(eval $(call unpack_tarball,$(EXT))))
 
 # Create tarballs from output directories
 $(DESTDIR)/%.tar.zst: $(DESTDIR)/%
-	@tar -cf - -C $< . | zstd -z -10 -T0 -o $@ -
+	@tar -cf - -C $< . | zstd -z -19 -T0 -o $@ -
 	@touch $@
 
 $(DESTDIR)/%.tar.zst.sha256sum: $(DESTDIR)/%.tar.zst
@@ -888,7 +899,7 @@ clean_docker: docker_stopall
 	@rm -rfv $(BUILDDIR)/docker_images.stamp
 
 define DOCKERFILE
-FROM alpine:3.19
+FROM alpine:3.20
 RUN apk update
 RUN apk add alpine-sdk autoconf automake bash binutils bison build-base file flex gawk gcc gcompat gettext-tiny git grep help2man indent m4 libbz2 libgcc libtool linux-headers ncurses ncurses-dev openssl-dev python3 wget xz zlib-dev zlib-static
 CMD ["/bin/bash"]

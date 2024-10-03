@@ -29,7 +29,7 @@ COREUTILS_VERSION = 9.5
 MUSL_CC_BASE_URL = https://musl.cc
 
 ifeq ($(OS),Darwin)
-GAWK_VERSION = 5.3.0
+GAWK_VERSION = 5.3.1
 GREP_VERSION = 3.11
 
 # NOTE - Unlike the others, this remote host doesn't provide an adjacent signature or checksum file to download.
@@ -445,18 +445,14 @@ $(SOURCEDIR)/busybox-$(BUSYBOX_VERSION).tar.bz2 $(SOURCEDIR)/busybox-$(BUSYBOX_V
 
 ifeq ($(OS),Darwin)
 MACOS_COMMAND_LINE_TOOLS_PATH := /Library/Developer/CommandLineTools
-MACOS_SDK_VERSIONS := 12.1 12.3 13.3 14.4 14.5
+MACOS_SDK_VERSIONS := 12.1 12.3 14.5 15.0
 
 .PHONY: $(DESTDIR)/sdk_universal_darwin
 $(DESTDIR)/sdk_universal_darwin: $(foreach VERSION,$(MACOS_SDK_VERSIONS),$(DESTDIR)/macos_sdk_$(VERSION))
 
 define build_darwin_sdk_target
 
-ifeq ($(1),14.5)
-	SDK_PATH := /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.5.sdk
-else
-	SDK_PATH := $(MACOS_COMMAND_LINE_TOOLS_PATH)/SDKs/MacOSX$(1).sdk
-endif
+SDK_PATH := $(MACOS_COMMAND_LINE_TOOLS_PATH)/SDKs/MacOSX$(1).sdk
 
 .PHONY: sdk_$(1)
 sdk_$(1): $$(DESTDIR)/macos_sdk_$(1)

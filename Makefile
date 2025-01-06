@@ -445,7 +445,7 @@ $(SOURCEDIR)/busybox-$(BUSYBOX_VERSION).tar.bz2 $(SOURCEDIR)/busybox-$(BUSYBOX_V
 
 ifeq ($(OS),Darwin)
 MACOS_COMMAND_LINE_TOOLS_PATH := /Library/Developer/CommandLineTools
-MACOS_SDK_VERSIONS := 12.1 12.3 14.5 15.1
+MACOS_SDK_VERSIONS := 12.1 12.3 14.5 15.2
 
 .PHONY: $(DESTDIR)/sdk_universal_darwin
 $(DESTDIR)/sdk_universal_darwin: $(foreach VERSION,$(MACOS_SDK_VERSIONS),$(DESTDIR)/macos_sdk_$(VERSION))

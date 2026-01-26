@@ -37,7 +37,7 @@ You also need some standard system utilities for compiling C code, fetching and 
 
 ```shellsession
 $ make list_needed_commands
-ar awk bash bzip2 c++ cc cd chmod cp curl find gpg gsed gzip install ld lipo ln make mkdir rm shasum strip tar touch xz zstd
+ar awk bash bzip2 c++ cc cd chmod cp curl docker find gsed gzip install ld lipo ln make mkdir rm shasum strip tar touch xz zstd
 ```
 
 ### MacOS
@@ -46,6 +46,8 @@ ar awk bash bzip2 c++ cc cd chmod cp curl find gpg gsed gzip install ld lipo ln 
 xcode-select --install && brew install gnu-sed zstd
 ```
 
+You also need [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running.
+
 Unfortunately, you **must** install [`GNU sed`](https://www.gnu.org/software/sed/) and have it available as `gsed` on your `$PATH` to build the `utils` target.
 
 ### Alpine
@@ -53,7 +55,7 @@ Unfortunately, you **must** install [`GNU sed`](https://www.gnu.org/software/sed
 Tested on version 3.15 and higher.
 
 ```txt
-apk add alpine-sdk bash curl gpg gpg-agent xz zstd
+apk add alpine-sdk bash curl docker xz zstd
 ```
 
 ### Fedora
@@ -61,7 +63,7 @@ apk add alpine-sdk bash curl gpg gpg-agent xz zstd
 Tested on version 37 and higher.
 
 ```txt
-dnf install bzip2 gcc make musl-libc xz zstd
+dnf install bzip2 docker gcc make xz zstd
 ```
 
 ### Ubuntu
@@ -69,14 +71,20 @@ dnf install bzip2 gcc make musl-libc xz zstd
 Tested on version 18.04 and higher.
 
 ```txt
-apt update && apt install build-essential curl musl zstd
+apt update && apt install build-essential curl docker.io zstd
 ```
 
-### Docker Platform
+### Docker
 
-This prerequisite is **optional**. Docker is **not** required to use the host-only targets on either macOS or Linux.
+Docker is **required** on both macOS and Linux for building the Linux components. This ensures reproducible builds across all host platforms.
 
-The Docker rules require [Docker Desktop](https://www.docker.com/products/docker-desktop/). The environment setup depends on the multi-platform capabilities provided by [BuildKit](https://docs.docker.com/build/buildkit/) via [`docker buildx`](https://docs.docker.com/engine/reference/commandline/buildx/). Alternate container runtimes like Colima will not work out of the box.
+The build uses multi-platform capabilities provided by [BuildKit](https://docs.docker.com/build/buildkit/) via [`docker buildx`](https://docs.docker.com/engine/reference/commandline/buildx/).
+
+**macOS options:**
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- [OrbStack](https://orbstack.dev/) (recommended - faster and lighter weight)
+
+**Note:** Alternate container runtimes like Colima will not work out of the box.
 
 <!-- See https://github.com/abiosoft/colima/issues/44 -->
 
@@ -88,11 +96,11 @@ scripts/kconfig/conf -s Config.in
 #
 # using defaults found in .config
 #
-/bootstrap/sources/busybox-1.36.1/modutils/modutils.c: In function 'filename2modname':
-/bootstrap/sources/busybox-1.36.1/modutils/modutils.c:115:1: warning: function may return address of local variable [-Wreturn-local-addr]
+/bootstrap/sources/busybox-1.37.0/modutils/modutils.c: In function 'filename2modname':
+/bootstrap/sources/busybox-1.37.0/modutils/modutils.c:115:1: warning: function may return address of local variable [-Wreturn-local-addr]
   115 | }
       | ^
-/bootstrap/sources/busybox-1.36.1/modutils/modutils.c:94:14: note: declared here
+/bootstrap/sources/busybox-1.37.0/modutils/modutils.c:94:14: note: declared here
    94 |         char local_modname[MODULE_NAME_LEN];
       |              ^~~~~~~~~~~~~
 assertion failed [result.value != EEXIST]: VmTracker attempted to allocate existing mapping
@@ -100,8 +108,8 @@ assertion failed [result.value != EEXIST]: VmTracker attempted to allocate exist
 gcc: internal compiler error: Trace/breakpoint trap signal terminated program cc1
 Please submit a full bug report, with preprocessed source (by using -freport-bug).
 See <https://gitlab.alpinelinux.org/alpine/aports/-/issues> for instructions.
-make[3]: *** [/bootstrap/sources/busybox-1.36.1/scripts/Makefile.build:197: coreutils/stat.o] Error 4
-make[2]: *** [/bootstrap/sources/busybox-1.36.1/Makefile:744: coreutils] Error 2
+make[3]: *** [/bootstrap/sources/busybox-1.37.0/scripts/Makefile.build:197: coreutils/stat.o] Error 4
+make[2]: *** [/bootstrap/sources/busybox-1.37.0/Makefile:744: coreutils] Error 2
 make[2]: *** Waiting for unfinished jobs....
 make[1]: *** [Makefile:112: _all] Error 2
 make: *** [Makefile:14: all] Error 2
@@ -183,10 +191,6 @@ None of these targets will catalyze any builds or downloads.
 
 ### Docker
 
-On MacOS, the following targets can be used to manage the Docker containers and images required for building the Linux components:
-
-- `docker_images` - build the Docker images for Linux builds.
+- `docker_images` - build the Docker images for Linux builds. You do not need to manually call this before building, it's provided for completeness.
 - `docker_stopall` - stop any container this Makefile can create.
 - `clean_docker` - Stop and remove all docker containers and images created by this Makefile.
-
-You do not need to manually call `docker_images` before building these components, it's just provided for completeness.

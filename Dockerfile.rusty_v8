@@ -1,7 +1,7 @@
-FROM debian:bookworm-slim
-RUN apt-get update && apt-get install -y \
-    build-essential curl git ninja-build pkg-config python3 \
-    && rm -rf /var/lib/apt/lists/*
+FROM fedora:43
+RUN dnf install -y \
+    curl gcc gcc-c++ git glib2-devel make ninja-build pkgconf-pkg-config python3 \
+    && dnf clean all
 RUN ln -sf /usr/bin/python3 /usr/bin/python
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
 ENV PATH="/root/.cargo/bin:${PATH}"

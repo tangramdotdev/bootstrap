@@ -582,7 +582,7 @@ $(SOURCEDIR)/busybox-$(BUSYBOX_VERSION).tar.bz2:
 
 ## rusty_v8
 
-# Docker image for rusty_v8 builds (Debian-based, separate from Alpine image)
+# Docker image for rusty_v8 builds (Fedora-based, separate from Alpine image)
 .PHONY: rusty_v8_docker_images
 rusty_v8_docker_images: $(BUILDDIR)/rusty_v8_docker_images.stamp
 
@@ -603,7 +603,7 @@ clean_rusty_v8_docker:
 	@docker buildx rm tangram_bootstrap_rusty_v8_builder 2>/dev/null || true
 	@rm -rfv $(BUILDDIR)/rusty_v8_docker_images.stamp
 
-# Always use x86_64 Debian container — V8's downloaded toolchains are x86_64-only.
+# Always use x86_64 Fedora container — V8's downloaded toolchains are x86_64-only.
 # $(1)=build script, $(2)=target arch (used only for cargo --target, not container arch)
 define run_rusty_v8_docker_build
 @if ! docker image inspect tangram_bootstrap_rusty_v8 >/dev/null 2>&1; then \

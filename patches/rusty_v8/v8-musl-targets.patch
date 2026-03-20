@@ -1,0 +1,38 @@
+Change GN target triples from gnu to musl for Alpine Linux builds.
+
+--- a/build/config/compiler/BUILD.gn
++++ b/build/config/compiler/BUILD.gn
+@@ -1301,5 +1301,5 @@
+     if (current_cpu == "x64") {
+-      cflags += [ "--target=x86_64-unknown-linux-gnu" ]
+-      ldflags += [ "--target=x86_64-unknown-linux-gnu" ]
++      cflags += [ "--target=x86_64-alpine-linux-musl" ]
++      ldflags += [ "--target=x86_64-alpine-linux-musl" ]
+     } else if (current_cpu == "x86") {
+@@ -1336,5 +1336,5 @@
+     } else if (current_cpu == "arm64") {
+-      cflags += [ "--target=aarch64-linux-gnu" ]
+-      ldflags += [ "--target=aarch64-linux-gnu" ]
++      cflags += [ "--target=aarch64-alpine-linux-musl" ]
++      ldflags += [ "--target=aarch64-alpine-linux-musl" ]
+     }
+--- a/build/config/rust.gni
++++ b/build/config/rust.gni
+@@ -207,5 +207,5 @@
+   } else if (current_cpu == "arm64") {
+-    rust_abi_target = "aarch64-unknown-linux-gnu"
++    rust_abi_target = "aarch64-unknown-linux-musl"
+   } else if (current_cpu == "x86") {
+-    rust_abi_target = "i686-unknown-linux-gnu"
++    rust_abi_target = "i686-unknown-linux-musl"
+   } else if (current_cpu == "x64") {
+@@ -213,3 +213,3 @@
+   } else if (current_cpu == "x64") {
+-    rust_abi_target = "x86_64-unknown-linux-gnu"
++    rust_abi_target = "x86_64-unknown-linux-musl"
+   }
+@@ -243,3 +243,3 @@
+   } else {
+-    rust_abi_target = current_cpu + "-unknown-linux-gnu"
++    rust_abi_target = current_cpu + "-unknown-linux-musl"
+   }

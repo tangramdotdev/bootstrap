@@ -582,7 +582,7 @@ $(SOURCEDIR)/busybox-$(BUSYBOX_VERSION).tar.bz2:
 
 ## rusty_v8
 
-# Docker image for rusty_v8 builds (Debian-based, separate from Alpine image)
+# Docker image for rusty_v8 builds (Alpine-based, separate from main Alpine image)
 .PHONY: rusty_v8_docker_images
 rusty_v8_docker_images: $(BUILDDIR)/rusty_v8_docker_images.stamp
 
@@ -603,7 +603,7 @@ clean_rusty_v8_docker:
 	@docker buildx rm tangram_bootstrap_rusty_v8_builder 2>/dev/null || true
 	@rm -rfv $(BUILDDIR)/rusty_v8_docker_images.stamp
 
-# Always use x86_64 Debian container — V8's downloaded toolchains are x86_64-only.
+# Always use x86_64 Alpine container with system clang/lld toolchain.
 # $(1)=build script, $(2)=target arch (used only for cargo --target, not container arch)
 define run_rusty_v8_docker_build
 @if ! docker image inspect tangram_bootstrap_rusty_v8 >/dev/null 2>&1; then \
@@ -634,6 +634,10 @@ $(SOURCEDIR)/rusty_v8-$(RUSTY_V8_COMMIT)/.cloned:
 \    "x86_64-unknown-linux-musl",\
 \    "aarch64-unknown-linux-musl",' rust-toolchain.toml && \
 		git submodule update --init --recursive --depth 1 && \
+		for patch in $(CURDIR)/patches/rusty_v8/*.patch; do \
+			patch -p1 < "$$patch"; \
+		done && \
+		echo -e "x86_64-unknown-linux-musl\naarch64-unknown-linux-musl" >> build/rust/known-target-triples.txt && \
 		echo "Cloned rusty_v8 at $(RUSTY_V8_COMMIT)"
 	@touch $@
 
@@ -643,10 +647,14 @@ define build_rusty_v8_script
 set -e && \
 unset MAKEFLAGS CARGO_MAKEFLAGS && \
 cd /bootstrap/$(1) && \
-export V8_FROM_SOURCE="yes" && \
-export GN_ARGS="use_custom_libcxx=false use_lld=false v8_enable_backtrace=false v8_enable_debugging_features=false" && \
+ln -sfn /usr third_party/rust-toolchain && \
+rustc --version | sed 's/rustc //' > third_party/rust-toolchain/VERSION && \
+export CC=clang CXX=clang++ AR=llvm-ar NM=llvm-nm && \
+export CLANG_BASE_PATH=/usr && \
+export LIBCLANG_PATH=/usr/lib && \
+export V8_FROM_SOURCE=yes && \
+export GN_ARGS="use_custom_libcxx=false custom_toolchain=\"//build/toolchain/linux/unbundle:default\" host_toolchain=\"//build/toolchain/linux/unbundle:default\" clang_base_path=\"/usr\" treat_warnings_as_errors=false use_sysroot=false v8_enable_backtrace=false v8_enable_debugging_features=false" && \
 export CARGO_TARGET_DIR=/bootstrap/$(BUILDDIR)/$(2)_linux/rusty_v8/cargo-target && \
-cd /bootstrap/$(1) && \
 cargo build -vv --release --target=$(2)-unknown-linux-musl && \
 mkdir -p $$(dirname /bootstrap/$(3)) && \
 cp $$CARGO_TARGET_DIR/$(2)-unknown-linux-musl/release/gn_out/obj/librusty_v8.a /bootstrap/$(3)

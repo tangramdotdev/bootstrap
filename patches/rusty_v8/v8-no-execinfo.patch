@@ -1,0 +1,13 @@
+Guard glibc-only execinfo.h header with __GLIBC__ check for musl compatibility.
+
+--- a/v8/src/codegen/external-reference-table.cc
++++ b/v8/src/codegen/external-reference-table.cc
+@@ -13,8 +13,10 @@
+ #if defined(DEBUG) && defined(V8_OS_LINUX) && !defined(V8_OS_ANDROID)
++#if defined(__GLIBC__)
+ #define SYMBOLIZE_FUNCTION
+ #include <execinfo.h>
++#endif  // __GLIBC__
+
+ #include <vector>
+

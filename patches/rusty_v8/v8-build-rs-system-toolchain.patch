@@ -1,0 +1,60 @@
+Patch build.rs for system toolchain support:
+- Skip downloading Chromium Rust toolchain when system Rust is pre-configured
+- Skip sysroot installation when CLANG_BASE_PATH is set (system toolchain)
+- Use system C++ headers for bindgen when not using custom libc++
+- Trust CLANG_BASE_PATH without version check
+
+--- a/build.rs
++++ b/build.rs
+@@ -182,11 +182,18 @@
+   let mut clang_args = vec![
+     "-x".to_string(),
+     "c++".to_string(),
+     "-std=c++20".to_string(),
+-    "-nostdinc++".to_string(),
+-    "-Iv8/include".to_string(),
+-    "-I.".to_string(),
+-    "-isystembuildtools/third_party/libc++".to_string(),
+-    "-isystemthird_party/libc++/src/include".to_string(),
+-    "-isystemthird_party/libc++abi/src/include".to_string(),
+   ];
++  if env::var("CLANG_BASE_PATH").is_err() {
++    clang_args.extend_from_slice(&[
++      "-nostdinc++".to_string(),
++      "-isystembuildtools/third_party/libc++".to_string(),
++      "-isystemthird_party/libc++/src/include".to_string(),
++      "-isystemthird_party/libc++abi/src/include".to_string(),
++    ]);
++  }
++  clang_args.extend_from_slice(&[
++    "-Iv8/include".to_string(),
++    "-I.".to_string(),
++  ]);
+
+@@ -358,7 +365,7 @@
+     if target_arch == "aarch64" {
+       gn_args.push(r#"target_cpu="arm64""#.to_string());
+-      if target_os == "linux" {
++      if target_os == "linux" && env::var("CLANG_BASE_PATH").is_err() {
+         gn_args.push("use_sysroot=true".to_string());
+         maybe_install_sysroot("arm64");
+         maybe_install_sysroot("amd64");
+@@ -512,6 +519,9 @@
+
+ fn download_rust_toolchain() {
++  if std::path::Path::new("third_party/rust-toolchain/VERSION").exists() {
++    return;
++  }
+   assert!(
+     Command::new(python())
+       .arg("./tools/rust_toolchain.py")
+@@ -884,7 +894,7 @@
+ fn find_compatible_system_clang() -> Option<PathBuf> {
+   if let Ok(p) = env::var("CLANG_BASE_PATH") {
+     let base_path = Path::new(&p);
+     let clang_path = base_path.join("bin").join("clang");
+-    if is_compatible_clang_version(&clang_path) {
++    if clang_path.exists() {
+       return Some(base_path.to_path_buf());
+     }
+   }

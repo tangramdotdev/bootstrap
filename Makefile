@@ -582,6 +582,45 @@ $(SOURCEDIR)/busybox-$(BUSYBOX_VERSION).tar.bz2:
 
 ## rusty_v8
 
+# Docker image for rusty_v8 builds (Debian-based, separate from Alpine image)
+.PHONY: rusty_v8_docker_images
+rusty_v8_docker_images: $(BUILDDIR)/rusty_v8_docker_images.stamp
+
+$(BUILDDIR)/rusty_v8_docker_images.stamp: Dockerfile.rusty_v8
+	@docker buildx stop tangram_bootstrap_rusty_v8_builder 2>/dev/null || true
+	@docker buildx rm tangram_bootstrap_rusty_v8_builder 2>/dev/null || true
+	@docker buildx create --use --platform linux/amd64,linux/arm64 --name tangram_bootstrap_rusty_v8_builder
+	@docker buildx inspect --bootstrap
+	@docker buildx build --platform linux/amd64 --load -t tangram_bootstrap_rusty_v8_x86_64 -f Dockerfile.rusty_v8 .
+	@docker buildx build --platform linux/arm64 --load -t tangram_bootstrap_rusty_v8_aarch64 -f Dockerfile.rusty_v8 .
+	@docker buildx stop tangram_bootstrap_rusty_v8_builder 2>/dev/null || true
+	@docker buildx rm tangram_bootstrap_rusty_v8_builder 2>/dev/null || true
+	@mkdir -p $(@D) && touch $@
+
+.PHONY: clean_rusty_v8_docker
+clean_rusty_v8_docker:
+	@docker rmi tangram_bootstrap_rusty_v8_x86_64 2>/dev/null || true
+	@docker rmi tangram_bootstrap_rusty_v8_aarch64 2>/dev/null || true
+	@docker buildx stop tangram_bootstrap_rusty_v8_builder 2>/dev/null || true
+	@docker buildx rm tangram_bootstrap_rusty_v8_builder 2>/dev/null || true
+	@rm -rfv $(BUILDDIR)/rusty_v8_docker_images.stamp
+
+define run_rusty_v8_docker_build
+@if ! docker image inspect tangram_bootstrap_rusty_v8_$(2) >/dev/null 2>&1; then \
+	echo "Error: Docker image tangram_bootstrap_rusty_v8_$(2) not found. Run 'make rusty_v8_docker_images' first."; \
+	exit 1; \
+fi
+docker run \
+	--rm \
+	--platform linux/$(call docker_platform,$(2)) \
+	--name "tangram-bootstrap-$(@F)-$(notdir $(@D))" \
+	-v "$$PWD:/bootstrap" \
+	tangram_bootstrap_rusty_v8_$(2) \
+	bash -eu -o pipefail -c \
+	'$(1)'
+endef
+
+# Source clone
 $(SOURCEDIR)/rusty_v8-$(RUSTY_V8_COMMIT)/.cloned:
 	@mkdir -p $(SOURCEDIR)/rusty_v8-$(RUSTY_V8_COMMIT)
 	@echo "Cloning rusty_v8 $(RUSTY_V8_COMMIT)..."
@@ -599,19 +638,7 @@ $(SOURCEDIR)/rusty_v8-$(RUSTY_V8_COMMIT)/.cloned:
 # $(1)=source dir, $(2)=arch (x86_64/aarch64), $(3)=output path
 define build_rusty_v8_script
 set -e && \
-GN_DIR=/bootstrap/$(BUILDDIR)/$(2)_linux/gn && \
-if [ ! -f "$$GN_DIR/out/gn" ]; then \
-	if [ ! -d "$$GN_DIR/.git" ]; then \
-		rm -rf "$$GN_DIR" && \
-		git clone https://gn.googlesource.com/gn "$$GN_DIR"; \
-	fi && \
-	cd "$$GN_DIR" && \
-	python3 build/gen.py && \
-	ninja -C out; \
-fi && \
 export V8_FROM_SOURCE="yes" && \
-export CLANG_BASE_PATH="/usr" && \
-export GN="$$GN_DIR/out/gn" && \
 export GN_ARGS="use_custom_libcxx=false use_lld=false v8_enable_backtrace=false v8_enable_debugging_features=false" && \
 export CARGO_TARGET_DIR=/bootstrap/$(BUILDDIR)/$(2)_linux/rusty_v8/cargo-target && \
 cd /bootstrap/$(1) && \
@@ -621,8 +648,8 @@ cp $$CARGO_TARGET_DIR/$(2)-unknown-linux-musl/release/gn_out/obj/librusty_v8.a /
 endef
 
 define rusty_v8_targets
-$(BUILDDIR)/$(1)/rusty_v8/librusty_v8.a: $(SOURCEDIR)/rusty_v8-$(RUSTY_V8_COMMIT)/.cloned $(BUILDDIR)/docker_images.stamp $(ENVIRONMENT)
-	@$$(call run_linux_docker_build,$$(call build_rusty_v8_script,$(SOURCEDIR)/rusty_v8-$(RUSTY_V8_COMMIT),$$(call get_arch,$(1)),$(BUILDDIR)/$(1)/rusty_v8/librusty_v8.a),$$(call get_arch,$(1)))
+$(BUILDDIR)/$(1)/rusty_v8/librusty_v8.a: $(SOURCEDIR)/rusty_v8-$(RUSTY_V8_COMMIT)/.cloned $(BUILDDIR)/rusty_v8_docker_images.stamp $(ENVIRONMENT)
+	@$$(call run_rusty_v8_docker_build,$$(call build_rusty_v8_script,$(SOURCEDIR)/rusty_v8-$(RUSTY_V8_COMMIT),$$(call get_arch,$(1)),$(BUILDDIR)/$(1)/rusty_v8/librusty_v8.a),$$(call get_arch,$(1)))
 
 .PHONY: clean_rusty_v8_$(1)
 clean_rusty_v8_$(1): clean_rusty_v8_$(1)_dist

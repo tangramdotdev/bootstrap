@@ -1,0 +1,8 @@
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y \
+    build-essential curl git ninja-build pkg-config python3 \
+    && rm -rf /var/lib/apt/lists/*
+RUN ln -sf /usr/bin/python3 /usr/bin/python
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
+ENV PATH="/root/.cargo/bin:${PATH}"
+RUN rustup target add x86_64-unknown-linux-musl aarch64-unknown-linux-musl

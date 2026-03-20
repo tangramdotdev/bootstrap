@@ -590,7 +590,7 @@ $(SOURCEDIR)/rusty_v8-$(RUSTY_V8_COMMIT)/.cloned:
 		git remote add origin $(RUSTY_V8_GIT_URL) && \
 		git fetch --depth 1 origin $(RUSTY_V8_COMMIT) && \
 		git checkout FETCH_HEAD && \
-		git config -f .gitmodules --unset submodule.v8.update && \
+		sed -i '/update = none/d' .gitmodules && \
 		git submodule update --init --recursive --depth 1 && \
 		echo "Cloned rusty_v8 at $(RUSTY_V8_COMMIT)"
 	@touch $@
@@ -610,6 +610,7 @@ if [ ! -f "$$GN_DIR/out/gn" ]; then \
 	ninja -C out; \
 fi && \
 export V8_FROM_SOURCE="yes" && \
+export CLANG_BASE_PATH="/usr" && \
 export GN="$$GN_DIR/out/gn" && \
 export GN_ARGS="use_custom_libcxx=false use_lld=false v8_enable_backtrace=false v8_enable_debugging_features=false" && \
 export CARGO_TARGET_DIR=/bootstrap/$(BUILDDIR)/$(2)_linux/rusty_v8/cargo-target && \
@@ -647,7 +648,7 @@ $(DESTDIR)/rusty_v8_%/.stamp: $(BUILDDIR)/%/rusty_v8/librusty_v8.a
 
 .PHONY: clean_rusty_v8_source
 clean_rusty_v8_source:
-	@rm -rfv $(SOURCEDIR)/rusty_v8-$(RUSTY_V8_COMMIT)
+	@docker run --rm -v "$$PWD:/bootstrap" alpine:3.23.3 rm -rf /bootstrap/$(SOURCEDIR)/rusty_v8-$(RUSTY_V8_COMMIT) 2>/dev/null || rm -rf $(SOURCEDIR)/rusty_v8-$(RUSTY_V8_COMMIT)
 
 ## macOS toolchain, sdk
 

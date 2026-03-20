@@ -51,6 +51,9 @@ TOYBOX_VERSION = 0.8.13
 TOYBOX_SHA256 = 9d4c124d7d731a2db399f6278baa2b42c2e3511f610c6ad30cc3f1a52581334b
 endif
 
+RUSTY_V8_GIT_URL = https://github.com/tangramdotdev/rusty_v8.git
+RUSTY_V8_COMMIT = 8ca8740070be6d7d5c9def27815ed1e2b84c2217
+
 # Managed directories
 ifeq ($(strip $(DESTDIR)),)
 DESTDIR := dist
@@ -92,6 +95,7 @@ ENV_PLATFORMS := $(LINUX_PLATFORMS)
 TOOLCHAIN_PLATFORMS := $(LINUX_PLATFORMS) universal_darwin
 UTILS_PLATFORMS := $(LINUX_PLATFORMS) universal_darwin
 SANDBOX_PLATFORMS := $(LINUX_PLATFORMS)
+RUSTY_V8_PLATFORMS := $(LINUX_PLATFORMS)
 
 ## Top-level targets
 
@@ -148,6 +152,10 @@ endef
 # SDK is handled specially (per-version targets), exclude from standard entrypoints
 $(foreach COMPONENT,$(filter-out sdk,$(ALL_HOST_COMPONENTS)),$(eval $(call component_entrypoint,$(COMPONENT))))
 
+# rusty_v8 is opt-in (not in ALL_HOST_COMPONENTS), so add its entrypoint manually
+.PHONY: rusty_v8
+rusty_v8: rusty_v8_$(HOST_PLATFORM)
+
 # Additionally, each component gets a set phony target for each valid platform.
 # Uses .stamp files for reliable dependency tracking instead of directory timestamps.
 define component_platform_entrypoints
@@ -173,6 +181,7 @@ $(foreach PLATFORM,$(filter $(PHONY_TARGET_PLATFORMS),$(ENV_PLATFORMS)),$(eval $
 $(foreach PLATFORM,$(filter $(PHONY_TARGET_PLATFORMS),$(TOOLCHAIN_PLATFORMS)),$(eval $(call component_platform_entrypoints,toolchain,$(PLATFORM))))
 $(foreach PLATFORM,$(filter $(PHONY_TARGET_PLATFORMS),$(UTILS_PLATFORMS)),$(eval $(call component_platform_entrypoints,utils,$(PLATFORM))))
 $(foreach PLATFORM,$(filter $(PHONY_TARGET_PLATFORMS),$(SANDBOX_PLATFORMS)),$(eval $(call component_platform_entrypoints,sandbox,$(PLATFORM))))
+$(foreach PLATFORM,$(filter $(PHONY_TARGET_PLATFORMS),$(RUSTY_V8_PLATFORMS)),$(eval $(call component_platform_entrypoints,rusty_v8,$(PLATFORM))))
 
 # The universal_darwin targets should also clean up the individual darwin targets.
 ifeq ($(OS),Darwin)
@@ -570,6 +579,75 @@ $(SOURCEDIR)/busybox-$(BUSYBOX_VERSION).tar.bz2.stamp: $(SOURCEDIR)/busybox-$(BU
 
 $(SOURCEDIR)/busybox-$(BUSYBOX_VERSION).tar.bz2:
 	@$(call download,$(BUSYBOX_BASE_URL)/$(@F),$@)
+
+## rusty_v8
+
+$(SOURCEDIR)/rusty_v8-$(RUSTY_V8_COMMIT)/.cloned:
+	@mkdir -p $(SOURCEDIR)/rusty_v8-$(RUSTY_V8_COMMIT)
+	@echo "Cloning rusty_v8 $(RUSTY_V8_COMMIT)..."
+	@cd $(SOURCEDIR)/rusty_v8-$(RUSTY_V8_COMMIT) && \
+		git init && \
+		git remote add origin $(RUSTY_V8_GIT_URL) && \
+		git fetch --depth 1 origin $(RUSTY_V8_COMMIT) && \
+		git checkout FETCH_HEAD && \
+		git config -f .gitmodules --unset submodule.v8.update && \
+		git submodule update --init --recursive --depth 1 && \
+		echo "Cloned rusty_v8 at $(RUSTY_V8_COMMIT)"
+	@touch $@
+
+# Build rusty_v8 from source inside Docker
+# $(1)=source dir, $(2)=arch (x86_64/aarch64), $(3)=output path
+define build_rusty_v8_script
+set -e && \
+GN_DIR=/bootstrap/$(BUILDDIR)/$(2)_linux/gn && \
+if [ ! -f "$$GN_DIR/out/gn" ]; then \
+	if [ ! -d "$$GN_DIR/.git" ]; then \
+		rm -rf "$$GN_DIR" && \
+		git clone https://gn.googlesource.com/gn "$$GN_DIR"; \
+	fi && \
+	cd "$$GN_DIR" && \
+	python3 build/gen.py && \
+	ninja -C out; \
+fi && \
+export V8_FROM_SOURCE="yes" && \
+export GN="$$GN_DIR/out/gn" && \
+export GN_ARGS="use_custom_libcxx=false use_lld=false v8_enable_backtrace=false v8_enable_debugging_features=false" && \
+export CARGO_TARGET_DIR=/bootstrap/$(BUILDDIR)/$(2)_linux/rusty_v8/cargo-target && \
+cd /bootstrap/$(1) && \
+cargo build -vv --release --target=$(2)-unknown-linux-musl && \
+mkdir -p $$(dirname /bootstrap/$(3)) && \
+cp $$CARGO_TARGET_DIR/$(2)-unknown-linux-musl/release/gn_out/obj/librusty_v8.a /bootstrap/$(3)
+endef
+
+define rusty_v8_targets
+$(BUILDDIR)/$(1)/rusty_v8/librusty_v8.a: $(SOURCEDIR)/rusty_v8-$(RUSTY_V8_COMMIT)/.cloned $(BUILDDIR)/docker_images.stamp $(ENVIRONMENT)
+	@$$(call run_linux_docker_build,$$(call build_rusty_v8_script,$(SOURCEDIR)/rusty_v8-$(RUSTY_V8_COMMIT),$$(call get_arch,$(1)),$(BUILDDIR)/$(1)/rusty_v8/librusty_v8.a),$$(call get_arch,$(1)))
+
+.PHONY: clean_rusty_v8_$(1)
+clean_rusty_v8_$(1): clean_rusty_v8_$(1)_dist
+	@rm -rfv $(BUILDDIR)/$(1)/rusty_v8
+
+.PHONY: clean_rusty_v8_$(1)_dist
+clean_rusty_v8_$(1)_dist:
+	@rm -rfv $(DESTDIR)/rusty_v8_$(1)
+
+.PHONY: clean_rusty_v8_$(1)_all
+clean_rusty_v8_$(1)_all: clean_rusty_v8_$(1) clean_rusty_v8_$(1)_sources
+
+.PHONY: clean_rusty_v8_$(1)_sources
+clean_rusty_v8_$(1)_sources: clean_rusty_v8_source
+endef
+
+$(foreach PLATFORM,$(LINUX_PLATFORMS),$(eval $(call rusty_v8_targets,$(PLATFORM))))
+
+$(DESTDIR)/rusty_v8_%/.stamp: $(BUILDDIR)/%/rusty_v8/librusty_v8.a
+	@mkdir -p $(DESTDIR)/rusty_v8_$*/lib
+	@cp $< $(DESTDIR)/rusty_v8_$*/lib/
+	@touch $@
+
+.PHONY: clean_rusty_v8_source
+clean_rusty_v8_source:
+	@rm -rfv $(SOURCEDIR)/rusty_v8-$(RUSTY_V8_COMMIT)
 
 ## macOS toolchain, sdk
 

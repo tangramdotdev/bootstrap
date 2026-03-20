@@ -1,0 +1,4 @@
+FROM fedora:43
+RUN dnf install -y --setopt=install_weak_deps=False \
+    bison diffutils gcc gcc-c++ gawk kernel-headers make python3 texinfo \
+    && dnf clean all

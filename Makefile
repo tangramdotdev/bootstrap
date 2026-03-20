@@ -11,7 +11,7 @@ endif
 
 # Provided components
 COMMON_COMPONENTS :=  dash toolchain utils
-LINUX_COMPONENTS := env
+LINUX_COMPONENTS := env runtime
 ifeq ($(OS),Darwin)
 MACOS_COMPONENTS := sdk
 endif
@@ -32,6 +32,18 @@ COREUTILS_SHA256 = 19bcb6ca867183c57d77155eae946c5eced88183143b45ca51ad7d26c628c
 MUSL_CC_BASE_URL = https://musl.cc
 MUSL_X86_64_SHA512 = 44d441ad9aa11a06feddf3daa4c9f53ad7d9ca37af1f5a61379aca07793703d179410cea723c1b7fca94c4de19a321228bdb3656bc5cbdb5e3bea8e2d6dac6c7
 MUSL_AARCH64_SHA512 = 16d544e09845c9dbba50f29e0cb04dd661e17eb63c56acad6a67fd2a78aa7596b792477c7177d3cd56d408a27dc291a90507df882f2b099c0f25511ce08fd3b5
+
+GLIBC_VERSION = 2.43
+GLIBC_SHA256 = d9c86c6b5dbddb43a3e08270c5844fc5177d19442cf5b8df4be7c07cd5fa3831
+
+ZLIB_NG_VERSION = 2.3.3
+ZLIB_NG_SHA256 = f9c65aa9c852eb8255b636fd9f07ce1c406f061ec19a2e7d508b318ca0c907d1
+
+XZ_VERSION = 5.8.2
+XZ_SHA256 = 890966ec3f5d5cc151077879e157c0593500a522f413ac50ba26d22a9a145214
+
+GCC_VERSION = 15.2.0
+GCC_SHA256 = 438fd996826b0c82485a29da03a72d71d6e3541a83ec702df4271f6fe025d24e
 
 ifeq ($(OS),Darwin)
 GAWK_VERSION = 5.3.2
@@ -57,7 +69,7 @@ BUILDDIR := build
 endif
 
 # Define the components and platforms this Makefile supports.
-# On Linux, only build the host platform. On macOS, build all platforms.
+# On Linux, build all Linux platforms via Docker. On macOS, build all platforms.
 ALL_ARCHES = aarch64 x86_64
 LINUX_PLATFORMS := $(foreach ARCH,$(ALL_ARCHES),$(ARCH)_linux)
 
@@ -74,9 +86,9 @@ else ifeq ($(OS),Linux)
 ALL_HOST_COMPONENTS := $(sort $(COMMON_COMPONENTS) $(LINUX_COMPONENTS))
 ALL_COMPONENTS := $(sort $(ALL_HOST_COMPONENTS))
 HOST_PLATFORM := $(ARCH)_linux
-ALL_PLATFORMS := $(HOST_PLATFORM)
-SINGLE_TARGET_PLATFORMS := $(HOST_PLATFORM)
-PHONY_TARGET_PLATFORMS := $(HOST_PLATFORM)
+ALL_PLATFORMS := $(LINUX_PLATFORMS)
+SINGLE_TARGET_PLATFORMS := $(LINUX_PLATFORMS)
+PHONY_TARGET_PLATFORMS := $(LINUX_PLATFORMS)
 endif
 
 # Component/platform validity matrix: Only generate targets for valid combinations.
@@ -85,6 +97,7 @@ DASH_PLATFORMS := $(LINUX_PLATFORMS) universal_darwin
 ENV_PLATFORMS := $(LINUX_PLATFORMS)
 TOOLCHAIN_PLATFORMS := $(LINUX_PLATFORMS) universal_darwin
 UTILS_PLATFORMS := $(LINUX_PLATFORMS) universal_darwin
+RUNTIME_PLATFORMS := $(LINUX_PLATFORMS)
 
 ## Top-level targets
 
@@ -165,6 +178,7 @@ $(foreach PLATFORM,$(filter $(PHONY_TARGET_PLATFORMS),$(DASH_PLATFORMS)),$(eval 
 $(foreach PLATFORM,$(filter $(PHONY_TARGET_PLATFORMS),$(ENV_PLATFORMS)),$(eval $(call component_platform_entrypoints,env,$(PLATFORM))))
 $(foreach PLATFORM,$(filter $(PHONY_TARGET_PLATFORMS),$(TOOLCHAIN_PLATFORMS)),$(eval $(call component_platform_entrypoints,toolchain,$(PLATFORM))))
 $(foreach PLATFORM,$(filter $(PHONY_TARGET_PLATFORMS),$(UTILS_PLATFORMS)),$(eval $(call component_platform_entrypoints,utils,$(PLATFORM))))
+$(foreach PLATFORM,$(filter $(PHONY_TARGET_PLATFORMS),$(RUNTIME_PLATFORMS)),$(eval $(call component_platform_entrypoints,runtime,$(PLATFORM))))
 
 # The universal_darwin targets should also clean up the individual darwin targets.
 ifeq ($(OS),Darwin)
@@ -308,6 +322,201 @@ $(BUILDDIR)/$(1)/env: $(SOURCEDIR)/coreutils-$(COREUTILS_VERSION)/.unpacked $(BU
 endef
 
 $(foreach arch,$(ALL_ARCHES),$(eval $(call build_env_target,$(arch)_linux)))
+
+## runtime (glibc, zlib-ng, xz/liblzma, libgcc_s)
+
+.PHONY: clean_glibc_source
+clean_glibc_source:
+	@rm -rfv $(SOURCEDIR)/glibc-$(GLIBC_VERSION)* $(SOURCEDIR)/glibc-$(GLIBC_VERSION).tar.xz
+
+.PHONY: clean_zlib_ng_source
+clean_zlib_ng_source:
+	@rm -rfv $(SOURCEDIR)/zlib-ng-$(ZLIB_NG_VERSION)* $(SOURCEDIR)/zlib-ng-$(ZLIB_NG_VERSION).tar.gz
+
+.PHONY: clean_xz_source
+clean_xz_source:
+	@rm -rfv $(SOURCEDIR)/xz-$(XZ_VERSION)* $(SOURCEDIR)/xz-$(XZ_VERSION).tar.xz
+
+.PHONY: clean_gcc_source
+clean_gcc_source:
+	@rm -rfv $(SOURCEDIR)/gcc-$(GCC_VERSION)* $(SOURCEDIR)/gcc-$(GCC_VERSION).tar.xz
+
+.PHONY: clean_runtime_source
+clean_runtime_source: clean_glibc_source clean_zlib_ng_source clean_xz_source clean_gcc_source
+
+define build_glibc_script
+$(call build_in_temp,$(1),$(2),\
+set -e && \
+mkdir -p $$TARGET && \
+$$SOURCE/configure \
+    --prefix=/usr \
+    --with-headers=/usr/include \
+    --enable-kernel=4.19 \
+    --disable-werror \
+    --disable-nscd \
+    --disable-timezone-tools \
+    libc_cv_slibdir=/usr/lib && \
+make -j$$(nproc) && \
+make install DESTDIR=$$TARGET && \
+rm -rf $$TARGET/usr/share $$TARGET/usr/bin $$TARGET/usr/sbin $$TARGET/var $$TARGET/etc \
+       $$TARGET/usr/include $$TARGET/usr/libexec $$TARGET/sbin \
+       $$TARGET/usr/lib/gconv $$TARGET/usr/lib/audit && \
+find $$TARGET/usr/lib -maxdepth 1 \( -name "*.a" -o -name "*.la" -o -name "*.o" \) -delete && \
+find $$TARGET/usr/lib -maxdepth 1 -name "*.so" ! -name "*.so.*" -delete && \
+cd $$TARGET/usr/lib && find . -maxdepth 1 -name "*.so.*" \
+    ! -name "ld-linux-*" \
+    ! -name "libc.so.*" \
+    ! -name "libdl.so.*" \
+    ! -name "libm.so.*" \
+    ! -name "libnss_dns.so.*" \
+    ! -name "libnss_files.so.*" \
+    ! -name "libpthread.so.*" \
+    ! -name "libresolv.so.*" \
+    ! -name "librt.so.*" \
+    -delete && \
+mv $$TARGET/usr/lib/* $$TARGET/ && rm -rf $$TARGET/usr && \
+touch $$TARGET/.stamp)
+endef
+
+define build_zlib_ng_script
+$(call build_in_temp,$(1),$(2),\
+set -e && \
+mkdir -p $$TARGET && \
+$$SOURCE/configure --prefix=/usr --zlib-compat && \
+make -j$$(nproc) && \
+make install DESTDIR=$$TARGET && \
+rm -rf $$TARGET/usr/share $$TARGET/usr/include $$TARGET/usr/lib/pkgconfig && \
+find $$TARGET/usr/lib -maxdepth 1 \( -name "*.a" -o -name "*.la" -o -name "*.o" \) -delete && \
+find $$TARGET/usr/lib -maxdepth 1 -name "*.so" ! -name "*.so.*" -delete && \
+strip --strip-unneeded $$TARGET/usr/lib/*.so.* && \
+mv $$TARGET/usr/lib/* $$TARGET/ && rm -rf $$TARGET/usr && \
+touch $$TARGET/.stamp)
+endef
+
+define build_xz_script
+$(call build_in_temp,$(1),$(2),\
+set -e && \
+mkdir -p $$TARGET && \
+$$SOURCE/configure \
+    --prefix=/usr \
+    --disable-static \
+    --disable-xz \
+    --disable-xzdec \
+    --disable-lzmadec \
+    --disable-lzmainfo \
+    --disable-scripts \
+    --disable-doc && \
+make -j$$(nproc) && \
+make install DESTDIR=$$TARGET && \
+rm -rf $$TARGET/usr/share $$TARGET/usr/include $$TARGET/usr/lib/pkgconfig && \
+find $$TARGET/usr/lib -maxdepth 1 \( -name "*.a" -o -name "*.la" -o -name "*.o" \) -delete && \
+find $$TARGET/usr/lib -maxdepth 1 -name "*.so" ! -name "*.so.*" -delete && \
+strip --strip-unneeded $$TARGET/usr/lib/*.so.* && \
+mv $$TARGET/usr/lib/* $$TARGET/ && rm -rf $$TARGET/usr && \
+touch $$TARGET/.stamp)
+endef
+
+define build_libgcc_script
+$(call build_in_temp,$(1),$(2),\
+set -e && \
+mkdir -p $$TARGET && \
+$$SOURCE/configure \
+    --prefix=/usr \
+    --libdir=/usr/lib \
+    --enable-languages=c \
+    --disable-bootstrap \
+    --disable-multilib \
+    --disable-libsanitizer \
+    --disable-libvtv \
+    --disable-libquadmath \
+    --disable-libgomp \
+    --disable-libssp \
+    --disable-libatomic \
+    --disable-libstdcxx \
+    --enable-shared \
+    --disable-static && \
+make -j$$(nproc) all-target-libgcc && \
+make install-target-libgcc DESTDIR=$$TARGET && \
+mkdir -p $$TARGET/usr/lib && \
+if [ ! -f $$TARGET/usr/lib/libgcc_s.so.1 ]; then \
+    cp $$(find $$TARGET -name "libgcc_s.so.1" -print -quit) $$TARGET/usr/lib/libgcc_s.so.1; \
+fi && \
+rm -rf $$TARGET/usr/lib/gcc $$TARGET/usr/share && \
+find $$TARGET/usr/lib -maxdepth 1 \( -name "*.a" -o -name "*.la" -o -name "*.o" \) -delete && \
+find $$TARGET/usr/lib -maxdepth 1 -name "*.so" ! -name "*.so.*" -delete && \
+strip --strip-unneeded $$TARGET/usr/lib/libgcc_s.so.1 && \
+mv $$TARGET/usr/lib/* $$TARGET/ && rm -rf $$TARGET/usr && \
+touch $$TARGET/.stamp)
+endef
+
+# Custom unpack rule for GCC: also download prerequisites (GMP, MPFR, MPC, ISL)
+$(SOURCEDIR)/gcc-$(GCC_VERSION)/.unpacked: $(SOURCEDIR)/gcc-$(GCC_VERSION).tar.xz.stamp
+	@mkdir -p $(@D)
+	@tar -xf $(basename $<) -C $(SOURCEDIR)
+	@cd $(SOURCEDIR)/gcc-$(GCC_VERSION) && contrib/download_prerequisites
+	@touch $@
+
+define build_runtime_targets
+.PHONY: clean_runtime_$(1)
+clean_runtime_$(1): clean_runtime_$(1)_dist
+	@rm -rfv $(BUILDDIR)/$(1)/glibc $(BUILDDIR)/$(1)/zlib-ng $(BUILDDIR)/$(1)/xz $(BUILDDIR)/$(1)/libgcc
+
+.PHONY: clean_runtime_$(1)_dist
+clean_runtime_$(1)_dist:
+	@rm -rfv $(DESTDIR)/runtime_$(1)
+
+.PHONY: clean_runtime_$(1)_all
+clean_runtime_$(1)_all: clean_runtime_$(1) clean_runtime_$(1)_sources
+
+.PHONY: clean_runtime_$(1)_sources
+clean_runtime_$(1)_sources: clean_runtime_source
+
+$(BUILDDIR)/$(1)/glibc/.stamp: $(SOURCEDIR)/glibc-$(GLIBC_VERSION)/.unpacked $(BUILDDIR)/docker_glibc_images.stamp $(ENVIRONMENT)
+	@$$(call run_glibc_docker_build,$$(call build_glibc_script,$(SOURCEDIR)/glibc-$(GLIBC_VERSION),$(BUILDDIR)/$(1)/glibc),$$(call get_arch,$(1)))
+
+$(BUILDDIR)/$(1)/zlib-ng/.stamp: $(SOURCEDIR)/zlib-ng-$(ZLIB_NG_VERSION)/.unpacked $(BUILDDIR)/docker_glibc_images.stamp $(ENVIRONMENT)
+	@$$(call run_glibc_docker_build,$$(call build_zlib_ng_script,$(SOURCEDIR)/zlib-ng-$(ZLIB_NG_VERSION),$(BUILDDIR)/$(1)/zlib-ng),$$(call get_arch,$(1)))
+
+$(BUILDDIR)/$(1)/xz/.stamp: $(SOURCEDIR)/xz-$(XZ_VERSION)/.unpacked $(BUILDDIR)/docker_glibc_images.stamp $(ENVIRONMENT)
+	@$$(call run_glibc_docker_build,$$(call build_xz_script,$(SOURCEDIR)/xz-$(XZ_VERSION),$(BUILDDIR)/$(1)/xz),$$(call get_arch,$(1)))
+
+$(BUILDDIR)/$(1)/libgcc/.stamp: $(SOURCEDIR)/gcc-$(GCC_VERSION)/.unpacked $(BUILDDIR)/docker_glibc_images.stamp $(ENVIRONMENT)
+	@$$(call run_glibc_docker_build,$$(call build_libgcc_script,$(SOURCEDIR)/gcc-$(GCC_VERSION),$(BUILDDIR)/$(1)/libgcc),$$(call get_arch,$(1)))
+
+$(DESTDIR)/runtime_$(1)/.stamp: $(BUILDDIR)/$(1)/glibc/.stamp $(BUILDDIR)/$(1)/zlib-ng/.stamp $(BUILDDIR)/$(1)/xz/.stamp $(BUILDDIR)/$(1)/libgcc/.stamp
+	@mkdir -p $(DESTDIR)/runtime_$(1)
+	@cp -R $(BUILDDIR)/$(1)/glibc/*.so* $(DESTDIR)/runtime_$(1)/
+	@cp -R $(BUILDDIR)/$(1)/zlib-ng/*.so* $(DESTDIR)/runtime_$(1)/
+	@cp -R $(BUILDDIR)/$(1)/xz/*.so* $(DESTDIR)/runtime_$(1)/
+	@cp -R $(BUILDDIR)/$(1)/libgcc/*.so* $(DESTDIR)/runtime_$(1)/
+	@touch $$@
+endef
+$(foreach platform,$(LINUX_PLATFORMS),$(eval $(call build_runtime_targets,$(platform))))
+
+# Source download and verify rules
+$(SOURCEDIR)/glibc-$(GLIBC_VERSION).tar.xz.stamp: $(SOURCEDIR)/glibc-$(GLIBC_VERSION).tar.xz
+	@$(call verify_sha256,$<,$(GLIBC_SHA256),$@)
+
+$(SOURCEDIR)/glibc-$(GLIBC_VERSION).tar.xz:
+	@$(call download,$(GNU_BASE_URL)/glibc/$(@F),$@)
+
+$(SOURCEDIR)/zlib-ng-$(ZLIB_NG_VERSION).tar.gz.stamp: $(SOURCEDIR)/zlib-ng-$(ZLIB_NG_VERSION).tar.gz
+	@$(call verify_sha256,$<,$(ZLIB_NG_SHA256),$@)
+
+$(SOURCEDIR)/zlib-ng-$(ZLIB_NG_VERSION).tar.gz:
+	@$(call download,https://github.com/zlib-ng/zlib-ng/archive/refs/tags/$(ZLIB_NG_VERSION).tar.gz,$@)
+
+$(SOURCEDIR)/xz-$(XZ_VERSION).tar.xz.stamp: $(SOURCEDIR)/xz-$(XZ_VERSION).tar.xz
+	@$(call verify_sha256,$<,$(XZ_SHA256),$@)
+
+$(SOURCEDIR)/xz-$(XZ_VERSION).tar.xz:
+	@$(call download,https://github.com/tukaani-project/xz/releases/download/v$(XZ_VERSION)/xz-$(XZ_VERSION).tar.xz,$@)
+
+$(SOURCEDIR)/gcc-$(GCC_VERSION).tar.xz.stamp: $(SOURCEDIR)/gcc-$(GCC_VERSION).tar.xz
+	@$(call verify_sha256,$<,$(GCC_SHA256),$@)
+
+$(SOURCEDIR)/gcc-$(GCC_VERSION).tar.xz:
+	@$(call download,$(GNU_BASE_URL)/gcc/gcc-$(GCC_VERSION)/$(@F),$@)
 
 ## Linux toolchain (musl.cc)
 
@@ -867,7 +1076,7 @@ docker_stopall:
 	@docker buildx stop tangram_bootstrap_builder 2>/dev/null || true
 
 .PHONY: clean_docker
-clean_docker: docker_stopall
+clean_docker: docker_stopall clean_docker_glibc
 	@docker rmi tangram_bootstrap_x86_64 2>/dev/null || true
 	@docker rmi tangram_bootstrap_aarch64 2>/dev/null || true
 	$(stop_builder)
@@ -908,6 +1117,46 @@ docker run \
 	--name "tangram-bootstrap-$(@F)-$(notdir $(@D))" \
 	-v "$$PWD:/bootstrap" \
 	tangram_bootstrap_$(2) \
+	bash -eu -o pipefail -c \
+	'$(1)'
+endef
+
+# Docker infrastructure for glibc builds (Fedora-based)
+
+.PHONY: docker_glibc_images
+docker_glibc_images: $(BUILDDIR)/docker_glibc_images.stamp
+
+.PHONY: clean_docker_glibc
+clean_docker_glibc:
+	@docker rmi tangram_bootstrap_glibc_x86_64 2>/dev/null || true
+	@docker rmi tangram_bootstrap_glibc_aarch64 2>/dev/null || true
+	@rm -rfv $(BUILDDIR)/docker_glibc_images.stamp
+
+$(BUILDDIR)/docker_glibc_images.stamp: Dockerfile.glibc
+	$(stop_builder)
+	@docker buildx create --use --platform linux/amd64,linux/arm64 --name tangram_bootstrap_builder
+	@docker buildx inspect --bootstrap
+	@docker buildx build --platform linux/amd64 --load -t tangram_bootstrap_glibc_x86_64 -f Dockerfile.glibc .
+	@docker buildx build --platform linux/arm64 --load -t tangram_bootstrap_glibc_aarch64 -f Dockerfile.glibc .
+	$(stop_builder)
+	@mkdir -p $(@D) && touch $@
+
+define verify_glibc_docker_image
+@if ! docker image inspect tangram_bootstrap_glibc_$(1) >/dev/null 2>&1; then \
+	echo "Error: Docker image tangram_bootstrap_glibc_$(1) not found. Run 'make docker_glibc_images' first."; \
+	exit 1; \
+fi
+endef
+
+define run_glibc_docker_build
+$(call verify_glibc_docker_image,$(2))
+docker run \
+	--rm \
+	--platform linux/$(call docker_platform,$(2)) \
+	--user $$(id -u):$$(id -g) \
+	--name "tangram-bootstrap-$(@F)-$(notdir $(@D))" \
+	-v "$$PWD:/bootstrap" \
+	tangram_bootstrap_glibc_$(2) \
 	bash -eu -o pipefail -c \
 	'$(1)'
 endef

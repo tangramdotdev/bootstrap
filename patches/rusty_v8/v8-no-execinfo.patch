@@ -1,13 +1,15 @@
 Guard glibc-only execinfo.h header with __GLIBC__ check for musl compatibility.
 
---- a/v8/src/codegen/external-reference-table.cc
-+++ b/v8/src/codegen/external-reference-table.cc
-@@ -13,8 +13,10 @@
+--- a/v8/src/codegen/external-reference-table.cc	2026-03-20 17:02:24.463746008 -0400
++++ b/v8/src/codegen/external-reference-table.cc	2026-03-20 16:05:18.083718550 -0400
+@@ -11,8 +11,10 @@
+ #include "src/logging/counters.h"
+ 
  #if defined(DEBUG) && defined(V8_OS_LINUX) && !defined(V8_OS_ANDROID)
 +#if defined(__GLIBC__)
  #define SYMBOLIZE_FUNCTION
  #include <execinfo.h>
 +#endif  // __GLIBC__
-
+ 
  #include <vector>
-
+ 

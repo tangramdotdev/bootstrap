@@ -589,33 +589,33 @@ rusty_v8_docker_images: $(BUILDDIR)/rusty_v8_docker_images.stamp
 $(BUILDDIR)/rusty_v8_docker_images.stamp: Dockerfile.rusty_v8
 	@docker buildx stop tangram_bootstrap_rusty_v8_builder 2>/dev/null || true
 	@docker buildx rm tangram_bootstrap_rusty_v8_builder 2>/dev/null || true
-	@docker buildx create --use --platform linux/amd64,linux/arm64 --name tangram_bootstrap_rusty_v8_builder
+	@docker buildx create --use --platform linux/amd64 --name tangram_bootstrap_rusty_v8_builder
 	@docker buildx inspect --bootstrap
-	@docker buildx build --platform linux/amd64 --load -t tangram_bootstrap_rusty_v8_x86_64 -f Dockerfile.rusty_v8 .
-	@docker buildx build --platform linux/arm64 --load -t tangram_bootstrap_rusty_v8_aarch64 -f Dockerfile.rusty_v8 .
+	@docker buildx build --platform linux/amd64 --load -t tangram_bootstrap_rusty_v8 -f Dockerfile.rusty_v8 .
 	@docker buildx stop tangram_bootstrap_rusty_v8_builder 2>/dev/null || true
 	@docker buildx rm tangram_bootstrap_rusty_v8_builder 2>/dev/null || true
 	@mkdir -p $(@D) && touch $@
 
 .PHONY: clean_rusty_v8_docker
 clean_rusty_v8_docker:
-	@docker rmi tangram_bootstrap_rusty_v8_x86_64 2>/dev/null || true
-	@docker rmi tangram_bootstrap_rusty_v8_aarch64 2>/dev/null || true
+	@docker rmi tangram_bootstrap_rusty_v8 2>/dev/null || true
 	@docker buildx stop tangram_bootstrap_rusty_v8_builder 2>/dev/null || true
 	@docker buildx rm tangram_bootstrap_rusty_v8_builder 2>/dev/null || true
 	@rm -rfv $(BUILDDIR)/rusty_v8_docker_images.stamp
 
+# Always use x86_64 Debian container — V8's downloaded toolchains are x86_64-only.
+# $(1)=build script, $(2)=target arch (used only for cargo --target, not container arch)
 define run_rusty_v8_docker_build
-@if ! docker image inspect tangram_bootstrap_rusty_v8_$(2) >/dev/null 2>&1; then \
-	echo "Error: Docker image tangram_bootstrap_rusty_v8_$(2) not found. Run 'make rusty_v8_docker_images' first."; \
+@if ! docker image inspect tangram_bootstrap_rusty_v8 >/dev/null 2>&1; then \
+	echo "Error: Docker image tangram_bootstrap_rusty_v8 not found. Run 'make rusty_v8_docker_images' first."; \
 	exit 1; \
 fi
 docker run \
 	--rm \
-	--platform linux/$(call docker_platform,$(2)) \
+	--platform linux/amd64 \
 	--name "tangram-bootstrap-$(@F)-$(notdir $(@D))" \
 	-v "$$PWD:/bootstrap" \
-	tangram_bootstrap_rusty_v8_$(2) \
+	tangram_bootstrap_rusty_v8 \
 	bash -eu -o pipefail -c \
 	'$(1)'
 endef
@@ -630,6 +630,9 @@ $(SOURCEDIR)/rusty_v8-$(RUSTY_V8_COMMIT)/.cloned:
 		git fetch --depth 1 origin $(RUSTY_V8_COMMIT) && \
 		git checkout FETCH_HEAD && \
 		sed -i '/update = none/d' .gitmodules && \
+		sed -i '/"aarch64-linux-android",/a\
+\    "x86_64-unknown-linux-musl",\
+\    "aarch64-unknown-linux-musl",' rust-toolchain.toml && \
 		git submodule update --init --recursive --depth 1 && \
 		echo "Cloned rusty_v8 at $(RUSTY_V8_COMMIT)"
 	@touch $@
@@ -638,6 +641,7 @@ $(SOURCEDIR)/rusty_v8-$(RUSTY_V8_COMMIT)/.cloned:
 # $(1)=source dir, $(2)=arch (x86_64/aarch64), $(3)=output path
 define build_rusty_v8_script
 set -e && \
+cd /bootstrap/$(1) && \
 export V8_FROM_SOURCE="yes" && \
 export GN_ARGS="use_custom_libcxx=false use_lld=false v8_enable_backtrace=false v8_enable_debugging_features=false" && \
 export CARGO_TARGET_DIR=/bootstrap/$(BUILDDIR)/$(2)_linux/rusty_v8/cargo-target && \

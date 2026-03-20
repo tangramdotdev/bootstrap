@@ -1,6 +1,6 @@
 FROM fedora:43
 RUN dnf install -y \
-    curl gcc gcc-c++ git glib2-devel make ninja-build pkgconf-pkg-config python3 \
+    curl gcc gcc-c++ git glib2-devel libatomic make ninja-build pkgconf-pkg-config python3 \
     && dnf clean all
 RUN ln -sf /usr/bin/python3 /usr/bin/python
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable

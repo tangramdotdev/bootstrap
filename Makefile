@@ -641,6 +641,7 @@ $(SOURCEDIR)/rusty_v8-$(RUSTY_V8_COMMIT)/.cloned:
 # $(1)=source dir, $(2)=arch (x86_64/aarch64), $(3)=output path
 define build_rusty_v8_script
 set -e && \
+unset MAKEFLAGS CARGO_MAKEFLAGS && \
 cd /bootstrap/$(1) && \
 export V8_FROM_SOURCE="yes" && \
 export GN_ARGS="use_custom_libcxx=false use_lld=false v8_enable_backtrace=false v8_enable_debugging_features=false" && \

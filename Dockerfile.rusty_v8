@@ -1,5 +1,5 @@
 FROM alpine:3.23.3
 RUN apk update && apk add \
     bash build-base clang curl glib-dev gn git lld \
-    llvm-dev python3 rust cargo samurai
+    llvm-dev python3 rust rust-bindgen cargo samurai
 RUN ln -sf /usr/bin/python3 /usr/bin/python

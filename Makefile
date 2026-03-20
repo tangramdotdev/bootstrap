@@ -630,14 +630,12 @@ $(SOURCEDIR)/rusty_v8-$(RUSTY_V8_COMMIT)/.cloned:
 		git fetch --depth 1 origin $(RUSTY_V8_COMMIT) && \
 		git checkout FETCH_HEAD && \
 		sed -i '/update = none/d' .gitmodules && \
-		sed -i '/"aarch64-linux-android",/a\
-\    "x86_64-unknown-linux-musl",\
-\    "aarch64-unknown-linux-musl",' rust-toolchain.toml && \
+		sed -i '/"aarch64-linux-android",/a\    "x86_64-unknown-linux-musl",\n    "aarch64-unknown-linux-musl",' rust-toolchain.toml && \
 		git submodule update --init --recursive --depth 1 && \
 		for patch in $(CURDIR)/patches/rusty_v8/*.patch; do \
 			patch -p1 < "$$patch"; \
 		done && \
-		echo -e "x86_64-unknown-linux-musl\naarch64-unknown-linux-musl" >> build/rust/known-target-triples.txt && \
+		echo -e "x86_64-alpine-linux-musl\naarch64-alpine-linux-musl" >> build/rust/known-target-triples.txt && \
 		echo "Cloned rusty_v8 at $(RUSTY_V8_COMMIT)"
 	@touch $@
 
@@ -648,16 +646,16 @@ set -e && \
 unset MAKEFLAGS CARGO_MAKEFLAGS && \
 cd /bootstrap/$(1) && \
 ln -sfn /usr third_party/rust-toolchain && \
-rustc --version | sed 's/rustc //' > third_party/rust-toolchain/VERSION && \
+rustc --version | sed "s/rustc //" > third_party/rust-toolchain/VERSION && \
 export CC=clang CXX=clang++ AR=llvm-ar NM=llvm-nm && \
 export CLANG_BASE_PATH=/usr && \
 export LIBCLANG_PATH=/usr/lib && \
 export V8_FROM_SOURCE=yes && \
 export GN_ARGS="use_custom_libcxx=false custom_toolchain=\"//build/toolchain/linux/unbundle:default\" host_toolchain=\"//build/toolchain/linux/unbundle:default\" clang_base_path=\"/usr\" treat_warnings_as_errors=false use_sysroot=false v8_enable_backtrace=false v8_enable_debugging_features=false" && \
 export CARGO_TARGET_DIR=/bootstrap/$(BUILDDIR)/$(2)_linux/rusty_v8/cargo-target && \
-cargo build -vv --release --target=$(2)-unknown-linux-musl && \
+cargo build -vv --release && \
 mkdir -p $$(dirname /bootstrap/$(3)) && \
-cp $$CARGO_TARGET_DIR/$(2)-unknown-linux-musl/release/gn_out/obj/librusty_v8.a /bootstrap/$(3)
+cp $$CARGO_TARGET_DIR/release/gn_out/obj/librusty_v8.a /bootstrap/$(3)
 endef
 
 define rusty_v8_targets

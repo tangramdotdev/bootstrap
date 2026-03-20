@@ -21,18 +21,18 @@ Change GN target triples from gnu to musl for Alpine Linux builds.
 @@ -207,5 +207,5 @@
    } else if (current_cpu == "arm64") {
 -    rust_abi_target = "aarch64-unknown-linux-gnu"
-+    rust_abi_target = "aarch64-unknown-linux-musl"
++    rust_abi_target = "aarch64-alpine-linux-musl"
    } else if (current_cpu == "x86") {
 -    rust_abi_target = "i686-unknown-linux-gnu"
-+    rust_abi_target = "i686-unknown-linux-musl"
++    rust_abi_target = "i686-alpine-linux-musl"
    } else if (current_cpu == "x64") {
 @@ -213,3 +213,3 @@
    } else if (current_cpu == "x64") {
 -    rust_abi_target = "x86_64-unknown-linux-gnu"
-+    rust_abi_target = "x86_64-unknown-linux-musl"
++    rust_abi_target = "x86_64-alpine-linux-musl"
    }
 @@ -243,3 +243,3 @@
    } else {
 -    rust_abi_target = current_cpu + "-unknown-linux-gnu"
-+    rust_abi_target = current_cpu + "-unknown-linux-musl"
++    rust_abi_target = current_cpu + "-alpine-linux-musl"
    }

@@ -559,6 +559,7 @@ clean_utils_$(1)_all: clean_utils_$(1) clean_utils_$(1)_sources
 clean_utils_$(1)_sources: clean_busybox_source
 
 $(BUILDDIR)/$(1)/utils/.stamp: $(SOURCEDIR)/busybox-$(BUSYBOX_VERSION)/.unpacked $(BUILDDIR)/docker_images.stamp $(ENVIRONMENT)
+	@mkdir -p $(BUILDDIR)/$(1)/utils
 	@$$(call run_linux_docker_build,$$(call build_busybox_script,$(SOURCEDIR)/busybox-$(BUSYBOX_VERSION),$(BUILDDIR)/$(1)/utils),$$(call get_arch,$(1)))
 	@touch $$@
 endef

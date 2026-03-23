@@ -131,7 +131,7 @@ Provided for both Linux and MacOS platforms:
 ### Linux-only
 
 - `env` - Sourced from [GNU coreutils](https://www.gnu.org/software/coreutils/).
-- `runtime` - Runtime shared libraries built from source in Docker (Fedora 43). Includes [glibc](https://www.gnu.org/software/libc/) (dynamic linker and core libraries), [zlib-ng](https://github.com/zlib-ng/zlib-ng) (zlib-compat mode), [xz/liblzma](https://tukaani.org/xz/), and [libgcc_s](https://gcc.gnu.org/).
+- `sandbox` - Sandbox environment built from source in Docker (Fedora 43). Includes [glibc](https://www.gnu.org/software/libc/) (dynamic linker and core libraries) and [libgcc_s](https://gcc.gnu.org/), plus the `dash` shell and `env` binary arranged in a directory hierarchy.
 
 ### MacOS-only
 
@@ -193,7 +193,7 @@ None of these targets will catalyze any builds or downloads.
 ### Docker
 
 - `docker_images` - build the Docker images for Linux builds. You do not need to manually call this before building, it's provided for completeness.
-- `docker_glibc_images` - build the Fedora-based Docker images for runtime library builds.
+- `docker_glibc_images` - build the Fedora-based Docker images for sandbox library builds.
 - `docker_stopall` - stop any container this Makefile can create.
 - `clean_docker` - Stop and remove all docker containers and images created by this Makefile.
-- `clean_docker_glibc` - remove runtime library Docker images.
+- `clean_docker_glibc` - remove sandbox library Docker images.

@@ -11,7 +11,7 @@ endif
 
 # Provided components
 COMMON_COMPONENTS :=  dash toolchain utils
-LINUX_COMPONENTS := env runtime
+LINUX_COMPONENTS := env sandbox
 ifeq ($(OS),Darwin)
 MACOS_COMPONENTS := sdk
 endif
@@ -35,12 +35,6 @@ MUSL_AARCH64_SHA512 = 16d544e09845c9dbba50f29e0cb04dd661e17eb63c56acad6a67fd2a78
 
 GLIBC_VERSION = 2.43
 GLIBC_SHA256 = d9c86c6b5dbddb43a3e08270c5844fc5177d19442cf5b8df4be7c07cd5fa3831
-
-ZLIB_NG_VERSION = 2.3.3
-ZLIB_NG_SHA256 = f9c65aa9c852eb8255b636fd9f07ce1c406f061ec19a2e7d508b318ca0c907d1
-
-XZ_VERSION = 5.8.2
-XZ_SHA256 = 890966ec3f5d5cc151077879e157c0593500a522f413ac50ba26d22a9a145214
 
 GCC_VERSION = 15.2.0
 GCC_SHA256 = 438fd996826b0c82485a29da03a72d71d6e3541a83ec702df4271f6fe025d24e
@@ -97,7 +91,7 @@ DASH_PLATFORMS := $(LINUX_PLATFORMS) universal_darwin
 ENV_PLATFORMS := $(LINUX_PLATFORMS)
 TOOLCHAIN_PLATFORMS := $(LINUX_PLATFORMS) universal_darwin
 UTILS_PLATFORMS := $(LINUX_PLATFORMS) universal_darwin
-RUNTIME_PLATFORMS := $(LINUX_PLATFORMS)
+SANDBOX_PLATFORMS := $(LINUX_PLATFORMS)
 
 ## Top-level targets
 
@@ -178,7 +172,7 @@ $(foreach PLATFORM,$(filter $(PHONY_TARGET_PLATFORMS),$(DASH_PLATFORMS)),$(eval 
 $(foreach PLATFORM,$(filter $(PHONY_TARGET_PLATFORMS),$(ENV_PLATFORMS)),$(eval $(call component_platform_entrypoints,env,$(PLATFORM))))
 $(foreach PLATFORM,$(filter $(PHONY_TARGET_PLATFORMS),$(TOOLCHAIN_PLATFORMS)),$(eval $(call component_platform_entrypoints,toolchain,$(PLATFORM))))
 $(foreach PLATFORM,$(filter $(PHONY_TARGET_PLATFORMS),$(UTILS_PLATFORMS)),$(eval $(call component_platform_entrypoints,utils,$(PLATFORM))))
-$(foreach PLATFORM,$(filter $(PHONY_TARGET_PLATFORMS),$(RUNTIME_PLATFORMS)),$(eval $(call component_platform_entrypoints,runtime,$(PLATFORM))))
+$(foreach PLATFORM,$(filter $(PHONY_TARGET_PLATFORMS),$(SANDBOX_PLATFORMS)),$(eval $(call component_platform_entrypoints,sandbox,$(PLATFORM))))
 
 # The universal_darwin targets should also clean up the individual darwin targets.
 ifeq ($(OS),Darwin)
@@ -323,26 +317,18 @@ endef
 
 $(foreach arch,$(ALL_ARCHES),$(eval $(call build_env_target,$(arch)_linux)))
 
-## runtime (glibc, zlib-ng, xz/liblzma, libgcc_s)
+## sandbox (glibc, libgcc_s, dash, env)
 
 .PHONY: clean_glibc_source
 clean_glibc_source:
 	@rm -rfv $(SOURCEDIR)/glibc-$(GLIBC_VERSION)* $(SOURCEDIR)/glibc-$(GLIBC_VERSION).tar.xz
 
-.PHONY: clean_zlib_ng_source
-clean_zlib_ng_source:
-	@rm -rfv $(SOURCEDIR)/zlib-ng-$(ZLIB_NG_VERSION)* $(SOURCEDIR)/zlib-ng-$(ZLIB_NG_VERSION).tar.gz
-
-.PHONY: clean_xz_source
-clean_xz_source:
-	@rm -rfv $(SOURCEDIR)/xz-$(XZ_VERSION)* $(SOURCEDIR)/xz-$(XZ_VERSION).tar.xz
-
 .PHONY: clean_gcc_source
 clean_gcc_source:
 	@rm -rfv $(SOURCEDIR)/gcc-$(GCC_VERSION)* $(SOURCEDIR)/gcc-$(GCC_VERSION).tar.xz
 
-.PHONY: clean_runtime_source
-clean_runtime_source: clean_glibc_source clean_zlib_ng_source clean_xz_source clean_gcc_source
+.PHONY: clean_sandbox_source
+clean_sandbox_source: clean_glibc_source clean_gcc_source
 
 define build_glibc_script
 $(call build_in_temp,$(1),$(2),\
@@ -374,44 +360,6 @@ cd $$TARGET/usr/lib && find . -maxdepth 1 -name "*.so.*" \
     ! -name "libresolv.so.*" \
     ! -name "librt.so.*" \
     -delete && \
-mv $$TARGET/usr/lib/* $$TARGET/ && rm -rf $$TARGET/usr && \
-touch $$TARGET/.stamp)
-endef
-
-define build_zlib_ng_script
-$(call build_in_temp,$(1),$(2),\
-set -e && \
-mkdir -p $$TARGET && \
-$$SOURCE/configure --prefix=/usr --zlib-compat && \
-make -j$$(nproc) && \
-make install DESTDIR=$$TARGET && \
-rm -rf $$TARGET/usr/share $$TARGET/usr/include $$TARGET/usr/lib/pkgconfig && \
-find $$TARGET/usr/lib -maxdepth 1 \( -name "*.a" -o -name "*.la" -o -name "*.o" \) -delete && \
-find $$TARGET/usr/lib -maxdepth 1 -name "*.so" ! -name "*.so.*" -delete && \
-strip --strip-unneeded $$TARGET/usr/lib/*.so.* && \
-mv $$TARGET/usr/lib/* $$TARGET/ && rm -rf $$TARGET/usr && \
-touch $$TARGET/.stamp)
-endef
-
-define build_xz_script
-$(call build_in_temp,$(1),$(2),\
-set -e && \
-mkdir -p $$TARGET && \
-$$SOURCE/configure \
-    --prefix=/usr \
-    --disable-static \
-    --disable-xz \
-    --disable-xzdec \
-    --disable-lzmadec \
-    --disable-lzmainfo \
-    --disable-scripts \
-    --disable-doc && \
-make -j$$(nproc) && \
-make install DESTDIR=$$TARGET && \
-rm -rf $$TARGET/usr/share $$TARGET/usr/include $$TARGET/usr/lib/pkgconfig && \
-find $$TARGET/usr/lib -maxdepth 1 \( -name "*.a" -o -name "*.la" -o -name "*.o" \) -delete && \
-find $$TARGET/usr/lib -maxdepth 1 -name "*.so" ! -name "*.so.*" -delete && \
-strip --strip-unneeded $$TARGET/usr/lib/*.so.* && \
 mv $$TARGET/usr/lib/* $$TARGET/ && rm -rf $$TARGET/usr && \
 touch $$TARGET/.stamp)
 endef
@@ -456,42 +404,42 @@ $(SOURCEDIR)/gcc-$(GCC_VERSION)/.unpacked: $(SOURCEDIR)/gcc-$(GCC_VERSION).tar.x
 	@cd $(SOURCEDIR)/gcc-$(GCC_VERSION) && contrib/download_prerequisites
 	@touch $@
 
-define build_runtime_targets
-.PHONY: clean_runtime_$(1)
-clean_runtime_$(1): clean_runtime_$(1)_dist
-	@rm -rfv $(BUILDDIR)/$(1)/glibc $(BUILDDIR)/$(1)/zlib-ng $(BUILDDIR)/$(1)/xz $(BUILDDIR)/$(1)/libgcc
+define build_sandbox_targets
+.PHONY: clean_sandbox_$(1)
+clean_sandbox_$(1): clean_sandbox_$(1)_dist
+	@rm -rfv $(BUILDDIR)/$(1)/glibc $(BUILDDIR)/$(1)/libgcc
 
-.PHONY: clean_runtime_$(1)_dist
-clean_runtime_$(1)_dist:
-	@rm -rfv $(DESTDIR)/runtime_$(1)
+.PHONY: clean_sandbox_$(1)_dist
+clean_sandbox_$(1)_dist:
+	@rm -rfv $(DESTDIR)/sandbox_$(1)
 
-.PHONY: clean_runtime_$(1)_all
-clean_runtime_$(1)_all: clean_runtime_$(1) clean_runtime_$(1)_sources
+.PHONY: clean_sandbox_$(1)_all
+clean_sandbox_$(1)_all: clean_sandbox_$(1) clean_sandbox_$(1)_sources
 
-.PHONY: clean_runtime_$(1)_sources
-clean_runtime_$(1)_sources: clean_runtime_source
+.PHONY: clean_sandbox_$(1)_sources
+clean_sandbox_$(1)_sources: clean_sandbox_source
 
 $(BUILDDIR)/$(1)/glibc/.stamp: $(SOURCEDIR)/glibc-$(GLIBC_VERSION)/.unpacked $(BUILDDIR)/docker_glibc_images.stamp $(ENVIRONMENT)
 	@$$(call run_glibc_docker_build,$$(call build_glibc_script,$(SOURCEDIR)/glibc-$(GLIBC_VERSION),$(BUILDDIR)/$(1)/glibc),$$(call get_arch,$(1)))
 
-$(BUILDDIR)/$(1)/zlib-ng/.stamp: $(SOURCEDIR)/zlib-ng-$(ZLIB_NG_VERSION)/.unpacked $(BUILDDIR)/docker_glibc_images.stamp $(ENVIRONMENT)
-	@$$(call run_glibc_docker_build,$$(call build_zlib_ng_script,$(SOURCEDIR)/zlib-ng-$(ZLIB_NG_VERSION),$(BUILDDIR)/$(1)/zlib-ng),$$(call get_arch,$(1)))
-
-$(BUILDDIR)/$(1)/xz/.stamp: $(SOURCEDIR)/xz-$(XZ_VERSION)/.unpacked $(BUILDDIR)/docker_glibc_images.stamp $(ENVIRONMENT)
-	@$$(call run_glibc_docker_build,$$(call build_xz_script,$(SOURCEDIR)/xz-$(XZ_VERSION),$(BUILDDIR)/$(1)/xz),$$(call get_arch,$(1)))
-
 $(BUILDDIR)/$(1)/libgcc/.stamp: $(SOURCEDIR)/gcc-$(GCC_VERSION)/.unpacked $(BUILDDIR)/docker_glibc_images.stamp $(ENVIRONMENT)
 	@$$(call run_glibc_docker_build,$$(call build_libgcc_script,$(SOURCEDIR)/gcc-$(GCC_VERSION),$(BUILDDIR)/$(1)/libgcc),$$(call get_arch,$(1)))
 
-$(DESTDIR)/runtime_$(1)/.stamp: $(BUILDDIR)/$(1)/glibc/.stamp $(BUILDDIR)/$(1)/zlib-ng/.stamp $(BUILDDIR)/$(1)/xz/.stamp $(BUILDDIR)/$(1)/libgcc/.stamp
-	@mkdir -p $(DESTDIR)/runtime_$(1)
-	@cp -R $(BUILDDIR)/$(1)/glibc/*.so* $(DESTDIR)/runtime_$(1)/
-	@cp -R $(BUILDDIR)/$(1)/zlib-ng/*.so* $(DESTDIR)/runtime_$(1)/
-	@cp -R $(BUILDDIR)/$(1)/xz/*.so* $(DESTDIR)/runtime_$(1)/
-	@cp -R $(BUILDDIR)/$(1)/libgcc/*.so* $(DESTDIR)/runtime_$(1)/
+$(DESTDIR)/sandbox_$(1)/.stamp: $(BUILDDIR)/$(1)/glibc/.stamp $(BUILDDIR)/$(1)/libgcc/.stamp $(BUILDDIR)/$(1)/dash $(BUILDDIR)/$(1)/env
+	@mkdir -p $(DESTDIR)/sandbox_$(1)/opt/tangram/lib
+	@mkdir -p $(DESTDIR)/sandbox_$(1)/opt/tangram/bin
+	@mkdir -p $(DESTDIR)/sandbox_$(1)/bin
+	@mkdir -p $(DESTDIR)/sandbox_$(1)/usr/bin
+	@cp -R $(BUILDDIR)/$(1)/glibc/*.so* $(DESTDIR)/sandbox_$(1)/opt/tangram/lib/
+	@cp -R $(BUILDDIR)/$(1)/libgcc/*.so* $(DESTDIR)/sandbox_$(1)/opt/tangram/lib/
+	@cp $(BUILDDIR)/$(1)/dash $(DESTDIR)/sandbox_$(1)/bin/sh
+	@cp $(BUILDDIR)/$(1)/env $(DESTDIR)/sandbox_$(1)/usr/bin/env
+	@printf '#!/bin/sh\nexec /opt/tangram/lib/$$(call get_ld_linux,$(1)) --library-path /opt/tangram/lib /opt/tangram/libexec/tangram\n' > $(DESTDIR)/sandbox_$(1)/opt/tangram/bin/tangram
+	@chmod +x $(DESTDIR)/sandbox_$(1)/opt/tangram/bin/tangram
+	@cd $(DESTDIR)/sandbox_$(1)/opt/tangram/bin && ln -sf ./tangram ./tg
 	@touch $$@
 endef
-$(foreach platform,$(LINUX_PLATFORMS),$(eval $(call build_runtime_targets,$(platform))))
+$(foreach platform,$(LINUX_PLATFORMS),$(eval $(call build_sandbox_targets,$(platform))))
 
 # Source download and verify rules
 $(SOURCEDIR)/glibc-$(GLIBC_VERSION).tar.xz.stamp: $(SOURCEDIR)/glibc-$(GLIBC_VERSION).tar.xz
@@ -499,18 +447,6 @@ $(SOURCEDIR)/glibc-$(GLIBC_VERSION).tar.xz.stamp: $(SOURCEDIR)/glibc-$(GLIBC_VER
 
 $(SOURCEDIR)/glibc-$(GLIBC_VERSION).tar.xz:
 	@$(call download,$(GNU_BASE_URL)/glibc/$(@F),$@)
-
-$(SOURCEDIR)/zlib-ng-$(ZLIB_NG_VERSION).tar.gz.stamp: $(SOURCEDIR)/zlib-ng-$(ZLIB_NG_VERSION).tar.gz
-	@$(call verify_sha256,$<,$(ZLIB_NG_SHA256),$@)
-
-$(SOURCEDIR)/zlib-ng-$(ZLIB_NG_VERSION).tar.gz:
-	@$(call download,https://github.com/zlib-ng/zlib-ng/archive/refs/tags/$(ZLIB_NG_VERSION).tar.gz,$@)
-
-$(SOURCEDIR)/xz-$(XZ_VERSION).tar.xz.stamp: $(SOURCEDIR)/xz-$(XZ_VERSION).tar.xz
-	@$(call verify_sha256,$<,$(XZ_SHA256),$@)
-
-$(SOURCEDIR)/xz-$(XZ_VERSION).tar.xz:
-	@$(call download,https://github.com/tukaani-project/xz/releases/download/v$(XZ_VERSION)/xz-$(XZ_VERSION).tar.xz,$@)
 
 $(SOURCEDIR)/gcc-$(GCC_VERSION).tar.xz.stamp: $(SOURCEDIR)/gcc-$(GCC_VERSION).tar.xz
 	@$(call verify_sha256,$<,$(GCC_SHA256),$@)
@@ -1032,6 +968,9 @@ endef
 define get_arch
 $(if $(findstring x86_64,$(1)),x86_64,$(if $(findstring aarch64,$(1)),aarch64,$(word 1,$(subst _, ,$(1)))))
 endef
+
+# Map platform to ld-linux dynamic linker filename.
+get_ld_linux = $(if $(findstring x86_64,$(1)),ld-linux-x86-64.so.2,ld-linux-aarch64.so.1)
 
 # Targets that just list other targets.
 NULL :=

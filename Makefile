@@ -39,6 +39,10 @@ GLIBC_SHA256 = d9c86c6b5dbddb43a3e08270c5844fc5177d19442cf5b8df4be7c07cd5fa3831
 GCC_VERSION = 15.2.0
 GCC_SHA256 = 438fd996826b0c82485a29da03a72d71d6e3541a83ec702df4271f6fe025d24e
 
+CACERT_BASE_URL = https://curl.se/ca
+CACERT_VERSION = 2026-03-19
+CACERT_SHA256 = b6e66569cc3d438dd5abe514d0df50005d570bfc96c14dca8f768d020cb96171
+
 ifeq ($(OS),Darwin)
 GAWK_VERSION = 5.3.2
 GAWK_SHA256 = f8c3486509de705192138b00ef2c00bbbdd0e84c30d5c07d23fc73a9dc4cc9cc
@@ -327,8 +331,12 @@ clean_glibc_source:
 clean_gcc_source:
 	@rm -rfv $(SOURCEDIR)/gcc-$(GCC_VERSION)* $(SOURCEDIR)/gcc-$(GCC_VERSION).tar.xz
 
+.PHONY: clean_cacert_source
+clean_cacert_source:
+	@rm -rfv $(SOURCEDIR)/cacert*
+
 .PHONY: clean_sandbox_source
-clean_sandbox_source: clean_glibc_source clean_gcc_source
+clean_sandbox_source: clean_glibc_source clean_gcc_source clean_cacert_source
 
 define build_glibc_script
 $(call build_in_temp,$(1),$(2),\
@@ -425,16 +433,18 @@ $(BUILDDIR)/$(1)/glibc/.stamp: $(SOURCEDIR)/glibc-$(GLIBC_VERSION)/.unpacked $(B
 $(BUILDDIR)/$(1)/libgcc/.stamp: $(SOURCEDIR)/gcc-$(GCC_VERSION)/.unpacked $(BUILDDIR)/docker_glibc_images.stamp $(ENVIRONMENT)
 	@$$(call run_glibc_docker_build,$$(call build_libgcc_script,$(SOURCEDIR)/gcc-$(GCC_VERSION),$(BUILDDIR)/$(1)/libgcc),$$(call get_arch,$(1)))
 
-$(DESTDIR)/sandbox_$(1)/.stamp: $(BUILDDIR)/$(1)/glibc/.stamp $(BUILDDIR)/$(1)/libgcc/.stamp $(BUILDDIR)/$(1)/dash $(BUILDDIR)/$(1)/env
+$(DESTDIR)/sandbox_$(1)/.stamp: $(BUILDDIR)/$(1)/glibc/.stamp $(BUILDDIR)/$(1)/libgcc/.stamp $(BUILDDIR)/$(1)/dash $(BUILDDIR)/$(1)/env $(SOURCEDIR)/cacert-$(CACERT_VERSION).pem.stamp
 	@mkdir -p $(DESTDIR)/sandbox_$(1)/opt/tangram/lib
 	@mkdir -p $(DESTDIR)/sandbox_$(1)/opt/tangram/bin
 	@mkdir -p $(DESTDIR)/sandbox_$(1)/bin
 	@mkdir -p $(DESTDIR)/sandbox_$(1)/usr/bin
+	@mkdir -p $(DESTDIR)/sandbox_$(1)/etc/ssl/certs
 	@cp -R $(BUILDDIR)/$(1)/glibc/*.so* $(DESTDIR)/sandbox_$(1)/opt/tangram/lib/
 	@cp -R $(BUILDDIR)/$(1)/libgcc/*.so* $(DESTDIR)/sandbox_$(1)/opt/tangram/lib/
 	@cp $(BUILDDIR)/$(1)/dash $(DESTDIR)/sandbox_$(1)/bin/sh
 	@cp $(BUILDDIR)/$(1)/env $(DESTDIR)/sandbox_$(1)/usr/bin/env
-	@printf '#!/bin/sh\nexec /opt/tangram/lib/$$(call get_ld_linux,$(1)) --library-path /opt/tangram/lib /opt/tangram/libexec/tangram "$$$$@"\n' > $(DESTDIR)/sandbox_$(1)/opt/tangram/bin/tangram
+	@cp $(SOURCEDIR)/cacert-$(CACERT_VERSION).pem $(DESTDIR)/sandbox_$(1)/etc/ssl/certs/ca-certificates.crt
+	@printf '#!/bin/sh\nexec /opt/tangram/lib/$$(call get_ld_linux,$(1)) --inhibit-cache --library-path /opt/tangram/lib /opt/tangram/libexec/tangram "$$$$@"\n' > $(DESTDIR)/sandbox_$(1)/opt/tangram/bin/tangram
 	@chmod +x $(DESTDIR)/sandbox_$(1)/opt/tangram/bin/tangram
 	@cd $(DESTDIR)/sandbox_$(1)/opt/tangram/bin && ln -sf ./tangram ./tg
 	@touch $$@
@@ -453,6 +463,12 @@ $(SOURCEDIR)/gcc-$(GCC_VERSION).tar.xz.stamp: $(SOURCEDIR)/gcc-$(GCC_VERSION).ta
 
 $(SOURCEDIR)/gcc-$(GCC_VERSION).tar.xz:
 	@$(call download,$(GNU_BASE_URL)/gcc/gcc-$(GCC_VERSION)/$(@F),$@)
+
+$(SOURCEDIR)/cacert-$(CACERT_VERSION).pem.stamp: $(SOURCEDIR)/cacert-$(CACERT_VERSION).pem
+	@$(call verify_sha256,$<,$(CACERT_SHA256),$@)
+
+$(SOURCEDIR)/cacert-$(CACERT_VERSION).pem:
+	@$(call download,$(CACERT_BASE_URL)/$(@F),$@)
 
 ## Linux toolchain (musl.cc)
 

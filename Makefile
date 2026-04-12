@@ -438,12 +438,12 @@ $(DESTDIR)/sandbox_$(1)/.stamp: $(BUILDDIR)/$(1)/glibc/.stamp $(BUILDDIR)/$(1)/l
 	@mkdir -p $(DESTDIR)/sandbox_$(1)/opt/tangram/bin
 	@mkdir -p $(DESTDIR)/sandbox_$(1)/bin
 	@mkdir -p $(DESTDIR)/sandbox_$(1)/usr/bin
-	@mkdir -p $(DESTDIR)/sandbox_$(1)/etc/ssl/certs
+	@mkdir -p $(DESTDIR)/sandbox_$(1)/opt/tangram/etc/ssl/certs
 	@cp -R $(BUILDDIR)/$(1)/glibc/*.so* $(DESTDIR)/sandbox_$(1)/opt/tangram/lib/
 	@cp -R $(BUILDDIR)/$(1)/libgcc/*.so* $(DESTDIR)/sandbox_$(1)/opt/tangram/lib/
 	@cp $(BUILDDIR)/$(1)/dash $(DESTDIR)/sandbox_$(1)/bin/sh
 	@cp $(BUILDDIR)/$(1)/env $(DESTDIR)/sandbox_$(1)/usr/bin/env
-	@cp $(SOURCEDIR)/cacert-$(CACERT_VERSION).pem $(DESTDIR)/sandbox_$(1)/etc/ssl/certs/ca-certificates.crt
+	@cp $(SOURCEDIR)/cacert-$(CACERT_VERSION).pem $(DESTDIR)/sandbox_$(1)/opt/tangram/etc/ssl/certs/ca-certificates.crt
 	@printf '#!/bin/sh\nexec /opt/tangram/lib/$$(call get_ld_linux,$(1)) --inhibit-cache --library-path /opt/tangram/lib /opt/tangram/libexec/tangram "$$$$@"\n' > $(DESTDIR)/sandbox_$(1)/opt/tangram/bin/tangram
 	@chmod +x $(DESTDIR)/sandbox_$(1)/opt/tangram/bin/tangram
 	@cd $(DESTDIR)/sandbox_$(1)/opt/tangram/bin && ln -sf ./tangram ./tg

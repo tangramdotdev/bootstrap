@@ -446,7 +446,7 @@ $(DESTDIR)/sandbox_$(1)/.stamp: $(BUILDDIR)/$(1)/glibc/.stamp $(BUILDDIR)/$(1)/l
 	@cp $(SOURCEDIR)/cacert-$(CACERT_VERSION).pem $(DESTDIR)/sandbox_$(1)/opt/tangram/etc/ssl/certs/ca-certificates.crt
 	@printf '#!/bin/sh\nexec /opt/tangram/lib/$$(call get_ld_linux,$(1)) --inhibit-cache --library-path /opt/tangram/lib /opt/tangram/libexec/tangram "$$$$@"\n' > $(DESTDIR)/sandbox_$(1)/opt/tangram/bin/tangram
 	@chmod +x $(DESTDIR)/sandbox_$(1)/opt/tangram/bin/tangram
-	@cd $(DESTDIR)/sandbox_$(1)/opt/tangram/bin && ln -sf ./tangram ./tg
+	@cd $(DESTDIR)/sandbox_$(1)/opt/tangram/bin && ln -sf tangram tg
 	@touch $$@
 endef
 $(foreach platform,$(LINUX_PLATFORMS),$(eval $(call build_sandbox_targets,$(platform))))

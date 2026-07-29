@@ -22,7 +22,7 @@ See [**Prerequisites**](#prerequisites) about the required host environment, **[
 - `artifact` - Anything produced as a result of running a `make` target.
 - `component` - A component the `bootstrap` package expects to provide, such as `dash` or `toolchain`.
 - `platform` - Either `x86_64_linux`, `aarch64_linux`, or `universal_darwin`.
-- `target` - An action supported by this makefile. These can be ["phony"](https://www.gnu.org/software/make/manual/html_node/Phony-Targets.html) (`clean`, `toolchain`) or refer to an actual output file: `$SOURCEDIR/dash-0.5.12.tar.gz`.
+- `target` - An action supported by this makefile. These can be ["phony"](https://www.gnu.org/software/make/manual/html_node/Phony-Targets.html) (`clean`, `toolchain`) or refer to an actual output file: `$SOURCEDIR/dash-0.5.13.5.tar.gz`.
 
 ## Prerequisites
 
@@ -131,7 +131,7 @@ Provided for both Linux and MacOS platforms:
 ### Linux-only
 
 - `env` - Sourced from [GNU coreutils](https://www.gnu.org/software/coreutils/).
-- `sandbox` - Sandbox environment built from source in Docker (Fedora 43). Includes [glibc](https://www.gnu.org/software/libc/) (dynamic linker and core libraries) and [libgcc_s](https://gcc.gnu.org/), plus the `dash` shell and `env` binary arranged in a directory hierarchy.
+- `sandbox` - Sandbox environment built from source in Docker (Fedora 45). Includes [glibc](https://www.gnu.org/software/libc/) (dynamic linker and core libraries) and [libgcc_s](https://gcc.gnu.org/), plus the `dash` shell and `env` binary arranged in a directory hierarchy.
 
 ### MacOS-only
 

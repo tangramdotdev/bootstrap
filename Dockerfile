@@ -1,4 +1,4 @@
-FROM alpine:3.23.2
+FROM alpine:3.24.1
 RUN apk update && apk add \
     alpine-sdk autoconf automake bash binutils bison build-base \
     file flex gawk gcc gcompat gettext-tiny git grep help2man \

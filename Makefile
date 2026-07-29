@@ -18,41 +18,41 @@ endif
 
 # Source package metadata and hardcoded checksums
 BUSYBOX_BASE_URL = https://busybox.net/downloads
-BUSYBOX_VERSION = 1.37.0
-BUSYBOX_SHA256 = 3311dff32e746499f4df0d5df04d7eb396382d7e108bb9250e7b519b837043a4
+BUSYBOX_VERSION = 1.38.0
+BUSYBOX_SHA256 = 34f9ea6ff8636f2c9241153b9114eefa9e65674a45318ae1ef95bb5f31c53bb2
 
 DASH_BASE_URL = http://gondor.apana.org.au/~herbert/dash/files
-DASH_VERSION = 0.5.12
-DASH_SHA512 = 13bd262be0089260cbd13530a9cf34690c0abeb2f1920eb5e61be7951b716f9f335b86279d425dbfae56cbd49231a8fdffdff70601a5177da3d543be6fc5eb17
+DASH_VERSION = 0.5.13.5
+DASH_SHA512 = ae326c110713a9da6b7afb977ca6fd931793b03011f0a7aa2c42e873f116ed09448deea9ef5ca4515fe3afe24e210e0aaa580f7de89934edda9cf31ee44c94dd
 
 GNU_BASE_URL = https://ftpmirror.gnu.org/gnu
-COREUTILS_VERSION = 9.9
-COREUTILS_SHA256 = 19bcb6ca867183c57d77155eae946c5eced88183143b45ca51ad7d26c628ca75
+COREUTILS_VERSION = 9.11
+COREUTILS_SHA256 = 394024eda0a5955217ceda9cd1201e65dc8fa3aa29c2951135a49521d57c3cc3
 
 MUSL_CC_BASE_URL = https://musl.cc
 MUSL_X86_64_SHA512 = 44d441ad9aa11a06feddf3daa4c9f53ad7d9ca37af1f5a61379aca07793703d179410cea723c1b7fca94c4de19a321228bdb3656bc5cbdb5e3bea8e2d6dac6c7
 MUSL_AARCH64_SHA512 = 16d544e09845c9dbba50f29e0cb04dd661e17eb63c56acad6a67fd2a78aa7596b792477c7177d3cd56d408a27dc291a90507df882f2b099c0f25511ce08fd3b5
 
-GLIBC_VERSION = 2.43
-GLIBC_SHA256 = d9c86c6b5dbddb43a3e08270c5844fc5177d19442cf5b8df4be7c07cd5fa3831
+GLIBC_VERSION = 2.44
+GLIBC_SHA256 = 37f600f2bef3c5e8300147059568b2a2e40a7ad6ccc65ce942556d49429cc667
 
-GCC_VERSION = 15.2.0
-GCC_SHA256 = 438fd996826b0c82485a29da03a72d71d6e3541a83ec702df4271f6fe025d24e
+GCC_VERSION = 16.1.0
+GCC_SHA256 = 50efb4d94c3397aff3b0d61a5abd748b4dd31d9d3f2ab7be05b171d36a510f79
 
 CACERT_BASE_URL = https://curl.se/ca
-CACERT_VERSION = 2026-03-19
-CACERT_SHA256 = b6e66569cc3d438dd5abe514d0df50005d570bfc96c14dca8f768d020cb96171
+CACERT_VERSION = 2026-07-16
+CACERT_SHA256 = 3ff344e30b9b1ed2971044eabb438a08f2e2245ddb5f8ab1a3ad8b63ab4eaf91
 
 ifeq ($(OS),Darwin)
-GAWK_VERSION = 5.3.2
-GAWK_SHA256 = f8c3486509de705192138b00ef2c00bbbdd0e84c30d5c07d23fc73a9dc4cc9cc
+GAWK_VERSION = 5.4.0
+GAWK_SHA256 = 3dd430f0cd3b4428c6c3f6afc021b9cd3c1f8c93f7a688dc268ca428a90b4ac1
 
 GREP_VERSION = 3.12
 GREP_SHA256 = 2649b27c0e90e632eadcd757be06c6e9a4f48d941de51e7c0f83ff76408a07b9
 
 TOYBOX_BASE_URL = http://landley.net/toybox/downloads
-TOYBOX_VERSION = 0.8.13
-TOYBOX_SHA256 = 9d4c124d7d731a2db399f6278baa2b42c2e3511f610c6ad30cc3f1a52581334b
+TOYBOX_VERSION = 0.8.14
+TOYBOX_SHA256 = 827e4cdfd69f5da973e00e2a59b30b3c9857fb7fae74c362fd0b4f96be7929b0
 endif
 
 # Managed directories
@@ -589,7 +589,7 @@ $(SOURCEDIR)/busybox-$(BUSYBOX_VERSION).tar.bz2:
 
 ifeq ($(OS),Darwin)
 MACOS_COMMAND_LINE_TOOLS_PATH := /Library/Developer/CommandLineTools
-MACOS_SDK_VERSIONS := 12.1 12.3 14.5 15.2 26.2
+MACOS_SDK_VERSIONS := 12.1 14.5 15.2 15.4 26.5
 
 # SDK: each version is a separate target, no unified sdk_universal_darwin
 .PHONY: sdk
@@ -601,8 +601,6 @@ clean_sdk: $(foreach VERSION,$(MACOS_SDK_VERSIONS),clean_sdk_$(VERSION))
 clean_sdk_dist: $(foreach VERSION,$(MACOS_SDK_VERSIONS),clean_sdk_$(VERSION)_dist)
 
 define build_darwin_sdk_target
-
-SDK_PATH := $(MACOS_COMMAND_LINE_TOOLS_PATH)/SDKs/MacOSX$(1).sdk
 
 .PHONY: sdk_$(1)
 sdk_$(1): $$(DESTDIR)/macos_sdk_$(1)/.stamp
@@ -621,8 +619,12 @@ $(DESTDIR)/macos_sdk_$(1)/.stamp: $(BUILDDIR)/universal_darwin/macos_sdk_$(1) $(
 	@touch $$@
 
 $(BUILDDIR)/universal_darwin/macos_sdk_$(1):
+	@if [ ! -d "$(MACOS_COMMAND_LINE_TOOLS_PATH)/SDKs/MacOSX$(1).sdk" ]; then \
+		echo "Error: macOS SDK $(1) not found at $(MACOS_COMMAND_LINE_TOOLS_PATH)/SDKs/MacOSX$(1).sdk"; \
+		exit 1; \
+	fi
 	@mkdir -p $$@
-	@cp -R $$(SDK_PATH)/* $$@
+	@cp -R $(MACOS_COMMAND_LINE_TOOLS_PATH)/SDKs/MacOSX$(1).sdk/* $$@
 endef
 
 $(foreach VERSION,$(MACOS_SDK_VERSIONS),$(eval $(call build_darwin_sdk_target,$(VERSION))))

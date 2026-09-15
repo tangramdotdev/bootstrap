@@ -37,7 +37,7 @@ You also need some standard system utilities for compiling C code, fetching and 
 
 ```shellsession
 $ make list_needed_commands
-ar awk bash bzip2 c++ cc cd chmod cmp cp curl file find gsed gzip install ld lipo ln make mkdir otool plutil rm shasum strip tar touch xcrun xz zstd
+ar awk bash bzip2 c++ cc cd chmod cp curl file find gsed gzip install ld lipo ln make mkdir rm shasum strip tar touch xcrun xz zstd
 ```
 
 ### MacOS
@@ -139,13 +139,13 @@ Provided for both Linux and MacOS platforms:
 
 macOS executable components now ship as separate `<component>_aarch64_darwin.tar.zst` and `<component>_x86_64_darwin.tar.zst` archives, matching Linux. SDK archives remain architecture-independent: `macos_sdk_<version>.tar.zst`, with versions 12.1, 14.5, 15.2, 26.5, and 27.0.
 
-The ARM toolchain comes from the selected Xcode/Command Line Tools installation (`xcrun --find clang`). The Intel toolchain is downloaded from [bootstrap v2026.01.26](https://github.com/tangramdotdev/bootstrap/releases/tag/v2026.01.26), verified by SHA-256, and thinned to Intel host binaries. Compiler target runtimes retain their original architectures. This intentionally depends on the historical release; retain its downloaded archive in `sources/` as an additional copy. Set `MACOS_TOOLCHAIN_X86_64=/path/to/older/toolchain/usr` to use a separately retained installation.
+The ARM toolchain comes from the selected Xcode/Command Line Tools installation (`xcrun --find clang`). The Intel toolchain is downloaded from [bootstrap v2026.01.26](https://github.com/tangramdotdev/bootstrap/releases/tag/v2026.01.26), verified by SHA-256, and thinned to Intel host binaries. Compiler target runtimes retain their original architectures. This intentionally depends on the historical release; retain its downloaded archive in `sources/` as an additional copy.
 
 SDKs come from `/Library/Developer/CommandLineTools/SDKs/`.
 
 Utilities for both architectures are built with the selected native compiler and SDK 27.0, targeting macOS 14.0. The Intel toolchain's older linker cannot read SDK 27's `arm64e.x1` entries: native Intel users must select SDK 26.5 or an older compatible SDK. ARM-hosted Intel cross-builds using Xcode 27 can use SDK 27.
 
-The build inputs can be overridden with `MACOS_BUILD_TOOLCHAIN`, `MACOS_BUILD_SDK`, `MACOS_DEPLOYMENT_TARGET`, and `MACOS_COMMAND_LINE_TOOLS_PATH`. `BUILD_JOBS` defaults to 4 jobs per utility build. Settings and compiler/SDK metadata changes invalidate affected outputs.
+The build inputs can be overridden with `MACOS_BUILD_TOOLCHAIN`, `MACOS_BUILD_SDK`, `MACOS_DEPLOYMENT_TARGET`, and `MACOS_COMMAND_LINE_TOOLS_PATH`. `BUILD_JOBS` defaults to 4 jobs per utility build. Run `make clean` when changing these inputs or the installed toolchain/SDKs.
 
 Consumers in `packages/std/bootstrap.tg.ts` must select Darwin archives by the architecture **running** the compiler, add SDK 27.0 and the new archive checksums, and allow an explicit older SDK for the Intel toolchain. Package deployment targets are independent of bootstrap utilities; SDK 27 requires at least macOS 12.0, so the packages repo's current 11.0 default also needs adjustment.
 
@@ -157,7 +157,7 @@ The build manages the following directories:
 - `BUILDDIR` - Intermediate build artifacts. Default: `build`.
 - `SOURCEDIR` - Source code, signatures, checksums. Default: `sources`.
 
-The `bootstrap` Tangram package consumes the published archives and their checksums. This repository has no Tangram module; validate Darwin bundles with `make check_darwin`. It checks architectures, deployment targets, SDK versions, native utilities, and C/C++ cross-linking. Intel macOS runtime testing requires an Intel Mac or Rosetta.
+Use `make check_darwin` to check bundle architectures, deployment targets, system dependencies, and C/C++ cross-linking. It executes only native programs; Intel macOS runtime testing requires an Intel Mac or Rosetta.
 
 The locations and contents of `BUILDDIR` and `SOURCEDIR` are not meaningful or known to the Tangram package.
 
@@ -166,7 +166,7 @@ The locations and contents of `BUILDDIR` and `SOURCEDIR` are not meaningful or k
 - `all` - equivalent to running `make` with no target defined. Build each supported entrypoint for your host platform.
 - `all_darwin` - On macOS, build both Darwin architectures and all versioned SDKs.
 - `all_platforms` - On macOS, build both Darwin and both Linux architectures.
-- `check_darwin` - Build and validate both Darwin architectures, running native smoke tests.
+- `check_darwin` - Build and validate both Darwin architectures.
 - `<component>` - Build a single component for your detected host platform.
 - `<component>_<platform>` - Build a single component for a specific platform, if supported.
 - `tarballs` - Create compressed tarballs for each component.
@@ -188,7 +188,7 @@ Additionally, each component defines cleaning targets which only remove its own 
 - `clean_<component>(_<platform>)?_dist`
 - `clean_<component>(_<platform>)?_sources`
 
-Omitting the platform is equivalent to specifying your host platform. For example, `clean_dash_dist` and `clean_dash_aarch64_darwin_dist` are equivalent on an ARM Mac.
+Omitting the platform cleans that component for all supported platforms. For example, `clean_dash_dist` removes every dash bundle.
 
 Note that multiple platforms may depend on the same sources. Using a platform-specific target to clean sources will affect all platforms that share that source. For example, running `make clean_dash_x86_64_linux_sources` will force `make dash_aarch64_darwin` to re-download the source code as well.
 

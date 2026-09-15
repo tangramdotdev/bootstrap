@@ -819,7 +819,8 @@ $(foreach EXT,$(SUPPORTED_EXTENSIONS),$(eval $(call unpack_tarball,$(EXT))))
 
 # Create tarballs from output directories
 $(DESTDIR)/%.tar.zst: $(DESTDIR)/%/.stamp
-	@tar -cf - --exclude='.stamp' -C $(DESTDIR)/$* . | zstd -z -19 -T0 -f -o $@ -
+	@bash -o pipefail -c 'tar -cf - --exclude=".stamp" -C "$(DESTDIR)/$*" . | zstd -z -19 -T0 -f -o "$@.tmp" -'
+	@mv "$@.tmp" "$@"
 
 $(DESTDIR)/%.tar.zst.sha256sum: $(DESTDIR)/%.tar.zst
 	@$(sha256) $< > $@

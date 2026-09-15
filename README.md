@@ -37,7 +37,7 @@ You also need some standard system utilities for compiling C code, fetching and 
 
 ```shellsession
 $ make list_needed_commands
-ar awk bash bzip2 c++ cc cd chmod cp curl file find gsed gzip install ld lipo ln make mkdir rm shasum strip tar touch xcrun xz zstd
+ar awk bash bzip2 c++ cc cd chmod cp curl find gsed gzip install ld ln make mkdir rm shasum strip tar touch xcrun xz zstd
 ```
 
 ### MacOS
@@ -139,7 +139,9 @@ Provided for both Linux and MacOS platforms:
 
 macOS executable components now ship as separate `<component>_aarch64_darwin.tar.zst` and `<component>_x86_64_darwin.tar.zst` archives, matching Linux. SDK archives remain architecture-independent: `macos_sdk_<version>.tar.zst`, with versions 12.1, 14.5, 15.2, 26.5, and 27.0.
 
-The ARM toolchain comes from the selected Xcode/Command Line Tools installation (`xcrun --find clang`). The Intel toolchain is downloaded from [bootstrap v2026.01.26](https://github.com/tangramdotdev/bootstrap/releases/tag/v2026.01.26), verified by SHA-256, and thinned to Intel host binaries. Compiler target runtimes retain their original architectures. This intentionally depends on the historical release; retain its downloaded archive in `sources/` as an additional copy.
+The ARM toolchain is copied from the selected Xcode/Command Line Tools installation (`xcrun --find clang`). The Intel toolchain is permanently frozen: it is downloaded from [bootstrap v2026.09.16](https://github.com/tangramdotdev/bootstrap/releases/tag/v2026.09.16), verified by SHA-256, and reused unchanged. It was thinned once from bootstrap v2026.01.26; compiler target runtimes retain their original architectures. Retain the archive in `sources/` as an additional copy.
+
+Before publishing v2026.09.16, use the prepared Intel archive at `sources/toolchain_darwin_v2026.09.16.tar.zst`. The Makefile copies these exact bytes to `dist/toolchain_x86_64_darwin.tar.zst` for upload; subsequent builds can download it from the release.
 
 SDKs come from `/Library/Developer/CommandLineTools/SDKs/`.
 

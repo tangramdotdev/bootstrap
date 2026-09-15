@@ -222,7 +222,7 @@ $(TOOLCHAIN):
 	@touch $@
 else ifeq ($(OS),Darwin)
 # On macOS, use the system toolchain for Darwin builds, Docker for Linux builds
-OS_COMMANDS := cc c++ file gsed ld lipo shasum xcrun
+OS_COMMANDS := cc c++ gsed ld shasum xcrun
 $(TOOLCHAIN):
 	@$(call ensure_command,cc,"Error: Xcode Command Line Tools are not installed! Run xcode-select --install.")
 	@mkdir -p $(@D)
@@ -590,19 +590,23 @@ $(SOURCEDIR)/busybox-$(BUSYBOX_VERSION).tar.bz2:
 ifeq ($(OS),Darwin)
 $(foreach PLATFORM,$(MACOS_PLATFORMS),$(BUILDDIR)/$(PLATFORM)/dash): Makefile
 
-# Retain a checksum-pinned Intel toolchain when the Apple installation is unavailable.
-$(SOURCEDIR)/toolchain_darwin_v2026.01.26.tar.zst:
-	@$(call download,https://github.com/tangramdotdev/bootstrap/releases/download/v2026.01.26/toolchain_universal_darwin.tar.zst,$@)
+# Frozen Intel toolchain, thinned once from bootstrap v2026.01.26.
+$(SOURCEDIR)/toolchain_darwin_v2026.09.16.tar.zst:
+	@$(call download,https://github.com/tangramdotdev/bootstrap/releases/download/v2026.09.16/toolchain_x86_64_darwin.tar.zst,$@)
 
-$(SOURCEDIR)/toolchain_darwin_v2026.01.26.tar.zst.stamp: $(SOURCEDIR)/toolchain_darwin_v2026.01.26.tar.zst
-	@$(call verify_sha256,$<,952bc0fa84feb02a32d2530b425fd7ae82280dec8112edc0e2adfaf7c1f1911e,$@)
+$(SOURCEDIR)/toolchain_darwin_v2026.09.16.tar.zst.stamp: $(SOURCEDIR)/toolchain_darwin_v2026.09.16.tar.zst
+	@$(call verify_sha256,$<,00c6d34df2bfa9fa9ca1daba8fd384f4635e404689ad932a6e481e48ccbcc275,$@)
 
-$(SOURCEDIR)/apple-toolchain-2026.01.26/.unpacked: $(SOURCEDIR)/toolchain_darwin_v2026.01.26.tar.zst.stamp
+$(DESTDIR)/toolchain_x86_64_darwin/.stamp: $(SOURCEDIR)/toolchain_darwin_v2026.09.16.tar.zst.stamp | $(ENVIRONMENT)
+	@rm -rf $(@D)
 	@mkdir -p $(@D)
 	@tar -xf $(basename $<) -C $(@D)
 	@touch $@
 
-$(DESTDIR)/toolchain_x86_64_darwin/.stamp: $(SOURCEDIR)/apple-toolchain-2026.01.26/.unpacked
+# Preserve the exact archive and checksum when including it in future releases.
+$(DESTDIR)/toolchain_x86_64_darwin.tar.zst: $(SOURCEDIR)/toolchain_darwin_v2026.09.16.tar.zst.stamp
+	@mkdir -p $(@D)
+	@cp $(basename $<) $@
 
 # SDK: each version is a separate, architecture-independent archive.
 .PHONY: sdk
@@ -643,35 +647,14 @@ endef
 
 $(foreach VERSION,$(MACOS_SDK_VERSIONS),$(eval $(call build_darwin_sdk_target,$(VERSION))))
 
-# Thin host executables and libraries; compiler target runtimes remain universal.
-# $(1)=copied toolchain, $(2)=host architecture
-define thin_darwin_toolchain
-set -e -o pipefail; \
-WORK="$(abspath $(1))"; \
-$(call set_arch_darwin,$(2)) && \
-find "$$WORK" -type f -exec file -N {} + | sed -n '/ (for architecture /d; s/: Mach-O.*//p' | \
-while IFS= read -r FILE; do \
-    case "$$FILE" in \
-        "$$WORK"/lib/clang/*|"$$WORK"/lib/arc/*) continue;; \
-        "$$WORK"/lib/swift/host/*) ;; \
-        "$$WORK"/lib/swift*) continue;; \
-    esac; \
-    ARCHES=$$(lipo -archs "$$FILE") || exit 1; \
-    lipo -verify_arch "$$ARCH" "$$FILE" || exit 1; \
-    if [ "$$ARCHES" != "$$ARCH" ]; then lipo "$$FILE" -thin "$$ARCH" -output "$$FILE" || exit 1; fi; \
-done
-endef
+$(DESTDIR)/toolchain_aarch64_darwin/.stamp: Makefile | $(ENVIRONMENT)
+	@rm -rf $(@D)
+	@mkdir -p $(@D)
+	@cp -R "$(MACOS_BUILD_TOOLCHAIN)/." $(@D)/
+	@touch $@
 
-# $(1)=platform, $(2)=source toolchain; thin host files while preserving target runtimes.
-define toolchain_darwin_target
-$(DESTDIR)/toolchain_$(1)/.stamp: Makefile | $(ENVIRONMENT)
-	@rm -rf $(DESTDIR)/toolchain_$(1)
-	@mkdir -p $(DESTDIR)/toolchain_$(1)
-	@cp -R "$(2)/." $(DESTDIR)/toolchain_$(1)/
-	@rm -f $(DESTDIR)/toolchain_$(1)/.stamp $(DESTDIR)/toolchain_$(1)/.unpacked
-	@$$(call thin_darwin_toolchain,$(DESTDIR)/toolchain_$(1),$$(call get_arch,$(1)))
-	@touch $$@
-
+# $(1)=platform.
+define toolchain_darwin_clean_targets
 .PHONY: clean_toolchain_$(1) clean_toolchain_$(1)_dist clean_toolchain_$(1)_all clean_toolchain_$(1)_sources
 clean_toolchain_$(1): clean_toolchain_$(1)_dist
 clean_toolchain_$(1)_dist:
@@ -680,8 +663,7 @@ clean_toolchain_$(1)_all: clean_toolchain_$(1)
 clean_toolchain_$(1)_sources:
 	@:
 endef
-$(eval $(call toolchain_darwin_target,aarch64_darwin,$(MACOS_BUILD_TOOLCHAIN)))
-$(eval $(call toolchain_darwin_target,x86_64_darwin,$(SOURCEDIR)/apple-toolchain-2026.01.26))
+$(foreach PLATFORM,$(MACOS_PLATFORMS),$(eval $(call toolchain_darwin_clean_targets,$(PLATFORM))))
 endif
 
 ## macOS utils

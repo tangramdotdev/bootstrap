@@ -102,16 +102,12 @@ ifeq ($(OS),Darwin)
 MACOS_COMMAND_LINE_TOOLS_PATH ?= /Library/Developer/CommandLineTools
 MACOS_BUILD_TOOLCHAIN ?= $(patsubst %/bin/clang,%,$(shell xcrun --find clang))
 MACOS_TOOLCHAIN_X86_64 ?= $(abspath $(SOURCEDIR)/apple-toolchain-2026.01.26)
-MACOS_SDK_VERSIONS := 12.1 14.5 15.2 15.4 26.5 27.0
+MACOS_SDK_VERSIONS := 12.1 14.5 15.2 26.5 27.0
 MACOS_BUILD_SDK ?= $(MACOS_COMMAND_LINE_TOOLS_PATH)/SDKs/MacOSX27.0.sdk
 MACOS_DEPLOYMENT_TARGET ?= 14.0
 BUILD_JOBS ?= 4
 MACOS_BUILD_CONFIG := $(BUILDDIR)/darwin.config
 macos_sdk = $(MACOS_COMMAND_LINE_TOOLS_PATH)/SDKs/MacOSX$(1).sdk
-# SDK 15.4 is no longer installed on the packaging host.
-ifeq ($(wildcard $(call macos_sdk,15.4)/SDKSettings.json),)
-macos_sdk = $(if $(filter 15.4,$(1)),$(abspath $(SOURCEDIR)/macos-sdk-15.4),$(MACOS_COMMAND_LINE_TOOLS_PATH)/SDKs/MacOSX$(1).sdk)
-endif
 endif
 
 ## Top-level targets
@@ -605,7 +601,7 @@ $(MACOS_BUILD_CONFIG): FORCE
 
 $(foreach PLATFORM,$(MACOS_PLATFORMS),$(BUILDDIR)/$(PLATFORM)/dash): $(MACOS_BUILD_CONFIG) $(MACOS_BUILD_TOOLCHAIN)/bin/clang $(MACOS_BUILD_TOOLCHAIN)/bin/ld $(MACOS_BUILD_SDK)/SDKSettings.json Makefile
 
-# Retain checksum-pinned inputs when the original Apple installation is unavailable.
+# Retain a checksum-pinned Intel toolchain when the Apple installation is unavailable.
 $(SOURCEDIR)/toolchain_darwin_v2026.01.26.tar.zst:
 	@$(call download,https://github.com/tangramdotdev/bootstrap/releases/download/v2026.01.26/toolchain_universal_darwin.tar.zst,$@)
 
@@ -619,21 +615,6 @@ $(SOURCEDIR)/apple-toolchain-2026.01.26/.unpacked: $(SOURCEDIR)/toolchain_darwin
 
 ifeq ($(MACOS_TOOLCHAIN_X86_64),$(abspath $(SOURCEDIR)/apple-toolchain-2026.01.26))
 $(DESTDIR)/toolchain_x86_64_darwin/.stamp: $(SOURCEDIR)/apple-toolchain-2026.01.26/.unpacked
-endif
-
-$(SOURCEDIR)/macos_sdk_15.4.tar.zst:
-	@$(call download,https://github.com/tangramdotdev/bootstrap/releases/download/v2026.07.29/macos_sdk_15.4.tar.zst,$@)
-
-$(SOURCEDIR)/macos_sdk_15.4.tar.zst.stamp: $(SOURCEDIR)/macos_sdk_15.4.tar.zst
-	@$(call verify_sha256,$<,db62998e3d1aeaacf631785fe32433e8f74bb7205345ed328e7483e91329ef05,$@)
-
-$(SOURCEDIR)/macos-sdk-15.4/.unpacked: $(SOURCEDIR)/macos_sdk_15.4.tar.zst.stamp
-	@mkdir -p $(@D)
-	@tar -xf $(basename $<) -C $(@D)
-	@touch $@
-
-ifeq ($(call macos_sdk,15.4),$(abspath $(SOURCEDIR)/macos-sdk-15.4))
-$(DESTDIR)/macos_sdk_15.4/.stamp: $(SOURCEDIR)/macos-sdk-15.4/.unpacked
 endif
 
 # SDK: each version is a separate, architecture-independent archive.
@@ -659,7 +640,6 @@ $(DESTDIR)/macos_sdk_$(1)/.stamp: $(wildcard $(call macos_sdk,$(1))/SDKSettings.
 	@rm -rf $(DESTDIR)/macos_sdk_$(1)
 	@mkdir -p $(DESTDIR)/macos_sdk_$(1)
 	@cp -R "$(call macos_sdk,$(1))/." $(DESTDIR)/macos_sdk_$(1)/
-	@rm -f $(DESTDIR)/macos_sdk_$(1)/.unpacked
 	@touch $$@
 endef
 $(foreach VERSION,$(MACOS_SDK_VERSIONS),$(eval $(call build_darwin_sdk_target,$(VERSION))))

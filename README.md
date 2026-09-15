@@ -137,11 +137,11 @@ Provided for both Linux and MacOS platforms:
 
 - `sdk` - Versioned headers and metadata for macOS APIs. Not to be confused with the [Tangram SDK](https://github.com/tangramdotdev/packages/blob/main/packages/std/sdk.tg)!
 
-macOS executable components now ship as separate `<component>_aarch64_darwin.tar.zst` and `<component>_x86_64_darwin.tar.zst` archives, matching Linux. SDK archives remain architecture-independent: `macos_sdk_<version>.tar.zst`, with versions 12.1, 14.5, 15.2, 15.4, 26.5, and 27.0.
+macOS executable components now ship as separate `<component>_aarch64_darwin.tar.zst` and `<component>_x86_64_darwin.tar.zst` archives, matching Linux. SDK archives remain architecture-independent: `macos_sdk_<version>.tar.zst`, with versions 12.1, 14.5, 15.2, 26.5, and 27.0.
 
 The ARM toolchain comes from the selected Xcode/Command Line Tools installation (`xcrun --find clang`). The Intel toolchain is downloaded from [bootstrap v2026.01.26](https://github.com/tangramdotdev/bootstrap/releases/tag/v2026.01.26), verified by SHA-256, and thinned to Intel host binaries. Compiler target runtimes retain their original architectures. This intentionally depends on the historical release; retain its downloaded archive in `sources/` as an additional copy. Set `MACOS_TOOLCHAIN_X86_64=/path/to/older/toolchain/usr` to use a separately retained installation.
 
-SDKs come from `/Library/Developer/CommandLineTools/SDKs/`. SDK 15.4 falls back to its checksum-pinned archive from bootstrap v2026.07.29 when absent locally.
+SDKs come from `/Library/Developer/CommandLineTools/SDKs/`.
 
 Utilities for both architectures are built with the selected native compiler and SDK 27.0, targeting macOS 14.0. The Intel toolchain's older linker cannot read SDK 27's `arm64e.x1` entries: native Intel users must select SDK 26.5 or an older compatible SDK. ARM-hosted Intel cross-builds using Xcode 27 can use SDK 27.
 

@@ -77,9 +77,9 @@ ALL_HOST_COMPONENTS := $(sort $(COMMON_COMPONENTS) $(MACOS_COMPONENTS))
 ALL_COMPONENTS := $(sort $(COMMON_COMPONENTS) $(LINUX_COMPONENTS) $(MACOS_COMPONENTS))
 MACOS_PLATFORMS := $(foreach ARCH,$(ALL_ARCHES),$(ARCH)_darwin)
 SINGLE_TARGET_PLATFORMS := $(LINUX_PLATFORMS) $(MACOS_PLATFORMS)
-HOST_PLATFORM := universal_darwin
-ALL_PLATFORMS := $(SINGLE_TARGET_PLATFORMS) $(HOST_PLATFORM)
-PHONY_TARGET_PLATFORMS := $(LINUX_PLATFORMS) $(HOST_PLATFORM)
+HOST_PLATFORM := $(ARCH)_darwin
+ALL_PLATFORMS := $(SINGLE_TARGET_PLATFORMS)
+PHONY_TARGET_PLATFORMS := $(SINGLE_TARGET_PLATFORMS)
 else ifeq ($(OS),Linux)
 ALL_HOST_COMPONENTS := $(sort $(COMMON_COMPONENTS) $(LINUX_COMPONENTS))
 ALL_COMPONENTS := $(sort $(ALL_HOST_COMPONENTS))
@@ -91,14 +91,32 @@ endif
 
 # Component/platform validity matrix: Only generate targets for valid combinations.
 # SDK is handled specially with per-version targets, not via this matrix.
-DASH_PLATFORMS := $(LINUX_PLATFORMS) universal_darwin
+DASH_PLATFORMS := $(LINUX_PLATFORMS) $(MACOS_PLATFORMS)
 ENV_PLATFORMS := $(LINUX_PLATFORMS)
-TOOLCHAIN_PLATFORMS := $(LINUX_PLATFORMS) universal_darwin
-UTILS_PLATFORMS := $(LINUX_PLATFORMS) universal_darwin
+TOOLCHAIN_PLATFORMS := $(LINUX_PLATFORMS) $(MACOS_PLATFORMS)
+UTILS_PLATFORMS := $(LINUX_PLATFORMS) $(MACOS_PLATFORMS)
 SANDBOX_PLATFORMS := $(LINUX_PLATFORMS)
+
+# macOS utilities use the selected native compiler, independently of the Intel archive.
+ifeq ($(OS),Darwin)
+MACOS_COMMAND_LINE_TOOLS_PATH ?= /Library/Developer/CommandLineTools
+MACOS_BUILD_TOOLCHAIN ?= $(patsubst %/bin/clang,%,$(shell xcrun --find clang))
+MACOS_TOOLCHAIN_X86_64 ?= $(abspath $(SOURCEDIR)/apple-toolchain-2026.01.26)
+MACOS_SDK_VERSIONS := 12.1 14.5 15.2 15.4 26.5 27.0
+MACOS_BUILD_SDK ?= $(MACOS_COMMAND_LINE_TOOLS_PATH)/SDKs/MacOSX27.0.sdk
+MACOS_DEPLOYMENT_TARGET ?= 14.0
+BUILD_JOBS ?= 4
+MACOS_BUILD_CONFIG := $(BUILDDIR)/darwin.config
+macos_sdk = $(MACOS_COMMAND_LINE_TOOLS_PATH)/SDKs/MacOSX$(1).sdk
+# SDK 15.4 is no longer installed on the packaging host.
+ifeq ($(wildcard $(call macos_sdk,15.4)/SDKSettings.json),)
+macos_sdk = $(if $(filter 15.4,$(1)),$(abspath $(SOURCEDIR)/macos-sdk-15.4),$(MACOS_COMMAND_LINE_TOOLS_PATH)/SDKs/MacOSX$(1).sdk)
+endif
+endif
 
 ## Top-level targets
 
+.DEFAULT_GOAL := all
 # Preserve intermediate completion stamps without skipping missing new source versions.
 .PRECIOUS: %/.unpacked %/.stamp
 
@@ -107,21 +125,32 @@ SANDBOX_PLATFORMS := $(LINUX_PLATFORMS)
 all: $(ALL_HOST_COMPONENTS)
 	@$(MAKE) --no-print-directory tarballs
 
-ALL_PACKAGES := $(shell find $(DESTDIR) -mindepth 1 -maxdepth 1 -type d 2>/dev/null | grep -vE "\.tar\.*$$")
+# Enumerate only supported completed components; stale universal bundles are excluded.
+ALL_PACKAGE_NAMES := $(foreach COMPONENT,$(COMMON_COMPONENTS),$(foreach PLATFORM,$(ALL_PLATFORMS),$(COMPONENT)_$(PLATFORM))) $(foreach COMPONENT,$(LINUX_COMPONENTS),$(foreach PLATFORM,$(LINUX_PLATFORMS),$(COMPONENT)_$(PLATFORM))) $(foreach VERSION,$(MACOS_SDK_VERSIONS),macos_sdk_$(VERSION))
+ALL_PACKAGES := $(foreach NAME,$(ALL_PACKAGE_NAMES),$(if $(wildcard $(DESTDIR)/$(NAME)/.stamp),$(DESTDIR)/$(NAME)))
 TARBALLS := $(addsuffix .tar.zst,$(ALL_PACKAGES))
 SHASUMS := $(DESTDIR)/SHASUMS256.txt
-.PHONY: tarballs
-tarballs: $(TARBALLS) $(SHASUMS)
+.PHONY: tarballs shasums FORCE
+FORCE:
 
-.PHONY: shasums
+tarballs: $(TARBALLS) $(SHASUMS)
 shasums: $(SHASUMS)
 
-$(SHASUMS): $(TARBALLS)
-	@$(sha256) $(DESTDIR)/*.tar.zst > $@
+$(SHASUMS): $(TARBALLS) FORCE
+	@mkdir -p $(@D)
+	@$(if $(strip $(TARBALLS)),$(sha256) $(TARBALLS),:) > $@
 
 # On MacOS, additionally build all components for all other platforms.
 ifeq ($(OS),Darwin)
-ALL_PLATFORM_TARGETS := $(sort $(foreach TARGET,$(ALL_CROSS_COMPONENTS),$(foreach PLATFORM,$(LINUX_PLATFORMS),$(TARGET)_$(PLATFORM))))
+ALL_PLATFORM_TARGETS := $(sort $(foreach TARGET,$(ALL_CROSS_COMPONENTS),$(foreach PLATFORM,$(LINUX_PLATFORMS),$(TARGET)_$(PLATFORM))) $(foreach TARGET,$(COMMON_COMPONENTS),$(foreach PLATFORM,$(filter-out $(HOST_PLATFORM),$(MACOS_PLATFORMS)),$(TARGET)_$(PLATFORM))))
+
+.PHONY: all_darwin
+all_darwin: sdk $(foreach COMPONENT,$(COMMON_COMPONENTS),$(foreach PLATFORM,$(MACOS_PLATFORMS),$(COMPONENT)_$(PLATFORM)))
+	@$(MAKE) --no-print-directory tarballs
+
+.PHONY: check_darwin
+check_darwin: sdk $(foreach COMPONENT,$(COMMON_COMPONENTS),$(foreach PLATFORM,$(MACOS_PLATFORMS),$(COMPONENT)_$(PLATFORM)))
+	@$(check_darwin_bundles)
 
 .PHONY: all_platforms
 all_platforms: $(ALL_HOST_COMPONENTS) $(ALL_PLATFORM_TARGETS)
@@ -150,6 +179,12 @@ clean_sources:
 define component_entrypoint
 .PHONY: $(1)
 $(1): $(1)_$(HOST_PLATFORM)
+
+.PHONY: clean_$(1) clean_$(1)_dist clean_$(1)_all clean_$(1)_sources
+clean_$(1): clean_$(1)_$(HOST_PLATFORM)
+clean_$(1)_dist: clean_$(1)_$(HOST_PLATFORM)_dist
+clean_$(1)_all: clean_$(1)_$(HOST_PLATFORM)_all
+clean_$(1)_sources: clean_$(1)_$(HOST_PLATFORM)_sources
 endef
 
 # SDK is handled specially (per-version targets), exclude from standard entrypoints
@@ -160,18 +195,6 @@ $(foreach COMPONENT,$(filter-out sdk,$(ALL_HOST_COMPONENTS)),$(eval $(call compo
 define component_platform_entrypoints
 .PHONY: $(1)_$(2)
 $(1)_$(2): $(DESTDIR)/$(1)_$(2)/.stamp
-
-.PHONY: clean_$(1)
-clean_$(1): clean_$(1)_$(2)
-
-.PHONY: clean_$(1)_dist
-clean_$(1)_dist: clean_$(1)_$(2)_dist
-
-.PHONY: clean_$(1)_all
-clean_$(1)_all: clean_$(1)_$(2)_all
-
-.PHONY: clean_$(1)_sources
-clean_$(1)_sources: clean_$(1)_$(2)_sources
 endef
 
 # Generate targets only for valid component/platform combinations
@@ -180,29 +203,6 @@ $(foreach PLATFORM,$(filter $(PHONY_TARGET_PLATFORMS),$(ENV_PLATFORMS)),$(eval $
 $(foreach PLATFORM,$(filter $(PHONY_TARGET_PLATFORMS),$(TOOLCHAIN_PLATFORMS)),$(eval $(call component_platform_entrypoints,toolchain,$(PLATFORM))))
 $(foreach PLATFORM,$(filter $(PHONY_TARGET_PLATFORMS),$(UTILS_PLATFORMS)),$(eval $(call component_platform_entrypoints,utils,$(PLATFORM))))
 $(foreach PLATFORM,$(filter $(PHONY_TARGET_PLATFORMS),$(SANDBOX_PLATFORMS)),$(eval $(call component_platform_entrypoints,sandbox,$(PLATFORM))))
-
-# The universal_darwin targets should also clean up the individual darwin targets.
-ifeq ($(OS),Darwin)
-define universal_darwin_targets
-.PRECIOUS: $(BUILDDIR)/universal_darwin/$(1)
-
-.PHONY: clean_$(1)_universal_darwin
-clean_$(1)_universal_darwin: clean_$(1)_universal_darwin_dist clean_$(1)_aarch64_darwin clean_$(1)_x86_64_darwin
-	@rm -rfv $(BUILDDIR)/universal_darwin/$(1)*
-
-.PHONY: clean_$(1)_universal_darwin_dist
-clean_$(1)_universal_darwin_dist:
-	@rm -rfv $(DESTDIR)/$(1)_universal_darwin
-
-.PHONY: clean_$(1)_universal_darwin_all
-clean_$(1)_universal_darwin_all: clean_$(1)_universal_darwin clean_$(1)_universal_darwin_sources
-
-.PHONY: clean_$(1)_universal_darwin_sources
-clean_$(1)_universal_darwin_sources: clean_$(1)_aarch64_darwin_sources
-endef
-# Generate universal_darwin clean targets for common components (env is Linux-only, sdk is per-version)
-$(foreach COMPONENT,$(COMMON_COMPONENTS),$(eval $(call universal_darwin_targets,$(COMPONENT))))
-endif
 
 ## Validate build environment.
 
@@ -224,10 +224,9 @@ $(TOOLCHAIN):
 	@touch $@
 else ifeq ($(OS),Darwin)
 # On macOS, use the system toolchain for Darwin builds, Docker for Linux builds
-OS_COMMANDS := cc c++ docker gsed ld lipo shasum
+OS_COMMANDS := cc c++ cmp file gsed ld lipo otool plutil shasum xcrun
 $(TOOLCHAIN):
-	@$(call ensure_command,cc,"Error: Xcode Command Line Tools are not installed! Run `xcode-select --install`.")
-	@$(call ensure_command,docker,"Error: Docker is required for Linux builds. Install Docker Desktop.")
+	@$(call ensure_command,cc,"Error: Xcode Command Line Tools are not installed! Run xcode-select --install.")
 	@mkdir -p $(@D)
 	@touch $@
 endif
@@ -262,7 +261,7 @@ $(foreach PLATFORM,$(PHONY_TARGET_PLATFORMS),$(eval $(call dash_dist_target,$(PL
 
 # These targets are defined for the single-target platforms: x86_64_linux, aarch64_linux, x86_64_darwin, aarch64_darwin.
 define dash_targets
-$(BUILDDIR)/$(1)/dash: $(SOURCEDIR)/dash-$(DASH_VERSION)/.unpacked $(BUILDDIR)/docker_images.stamp $(ENVIRONMENT)
+$(BUILDDIR)/$(1)/dash: $(SOURCEDIR)/dash-$(DASH_VERSION)/.unpacked $(if $(filter %_linux,$(1)),$(BUILDDIR)/docker_images.stamp) $(ENVIRONMENT)
 	@$$(call build_$$(call get_os,$(1)),$(SOURCEDIR)/dash-$(DASH_VERSION),$$(call get_arch,$(1)),src/dash,$$@)
 
 .PHONY: clean_dash_$(1)
@@ -309,13 +308,16 @@ clean_env_$(1)_dist:
 .PHONY: clean_env_$(1)_all
 clean_env_$(1)_all: clean_env_$(1) clean_env_source
 
+.PHONY: clean_env_$(1)_sources
+clean_env_$(1)_sources: clean_env_source
+
 $(DESTDIR)/env_$(1)/.stamp: $(BUILDDIR)/$(1)/env
 	@mkdir -p $(DESTDIR)/env_$(1)/bin
 	@cp $$< $(DESTDIR)/env_$(1)/bin/
 	@touch $$@
 endef
 
-$(foreach PLATFORM,$(PHONY_TARGET_PLATFORMS),$(eval $(call env_targets,$(PLATFORM))))
+$(foreach PLATFORM,$(LINUX_PLATFORMS),$(eval $(call env_targets,$(PLATFORM))))
 
 define build_env_target
 $(BUILDDIR)/$(1)/env: $(SOURCEDIR)/coreutils-$(COREUTILS_VERSION)/.unpacked $(BUILDDIR)/docker_images.stamp $(ENVIRONMENT)
@@ -488,6 +490,9 @@ clean_toolchain_$(1)_dist:
 
 .PHONY: clean_toolchain_$(1)_all
 clean_toolchain_$(1)_all: clean_toolchain_$(1) clean_musl_cc_source
+
+.PHONY: clean_toolchain_$(1)_sources
+clean_toolchain_$(1)_sources: clean_musl_cc_source
 endef
 
 $(foreach PLATFORM,$(LINUX_PLATFORMS),$(eval $(call toolchain_linux_targets,$(PLATFORM))))
@@ -591,10 +596,47 @@ $(SOURCEDIR)/busybox-$(BUSYBOX_VERSION).tar.bz2:
 ## macOS toolchain, sdk
 
 ifeq ($(OS),Darwin)
-MACOS_COMMAND_LINE_TOOLS_PATH := /Library/Developer/CommandLineTools
-MACOS_SDK_VERSIONS := 12.1 14.5 15.2 15.4 26.5
+# Record settings only when they change; file prerequisites track compiler/SDK updates.
+$(MACOS_BUILD_CONFIG): FORCE
+	@mkdir -p $(@D)
+	@printf '%s\n' "$(MACOS_BUILD_TOOLCHAIN)" "$(MACOS_TOOLCHAIN_X86_64)" "$(MACOS_BUILD_SDK)" "$(MACOS_COMMAND_LINE_TOOLS_PATH)" "$(MACOS_DEPLOYMENT_TARGET)" > $@.tmp
+	@cmp -s $@ $@.tmp || mv $@.tmp $@
+	@rm -f $@.tmp
 
-# SDK: each version is a separate target, no unified sdk_universal_darwin
+$(foreach PLATFORM,$(MACOS_PLATFORMS),$(BUILDDIR)/$(PLATFORM)/dash): $(MACOS_BUILD_CONFIG) $(MACOS_BUILD_TOOLCHAIN)/bin/clang $(MACOS_BUILD_TOOLCHAIN)/bin/ld $(MACOS_BUILD_SDK)/SDKSettings.json Makefile
+
+# Retain checksum-pinned inputs when the original Apple installation is unavailable.
+$(SOURCEDIR)/toolchain_darwin_v2026.01.26.tar.zst:
+	@$(call download,https://github.com/tangramdotdev/bootstrap/releases/download/v2026.01.26/toolchain_universal_darwin.tar.zst,$@)
+
+$(SOURCEDIR)/toolchain_darwin_v2026.01.26.tar.zst.stamp: $(SOURCEDIR)/toolchain_darwin_v2026.01.26.tar.zst
+	@$(call verify_sha256,$<,952bc0fa84feb02a32d2530b425fd7ae82280dec8112edc0e2adfaf7c1f1911e,$@)
+
+$(SOURCEDIR)/apple-toolchain-2026.01.26/.unpacked: $(SOURCEDIR)/toolchain_darwin_v2026.01.26.tar.zst.stamp
+	@mkdir -p $(@D)
+	@tar -xf $(basename $<) -C $(@D)
+	@touch $@
+
+ifeq ($(MACOS_TOOLCHAIN_X86_64),$(abspath $(SOURCEDIR)/apple-toolchain-2026.01.26))
+$(DESTDIR)/toolchain_x86_64_darwin/.stamp: $(SOURCEDIR)/apple-toolchain-2026.01.26/.unpacked
+endif
+
+$(SOURCEDIR)/macos_sdk_15.4.tar.zst:
+	@$(call download,https://github.com/tangramdotdev/bootstrap/releases/download/v2026.07.29/macos_sdk_15.4.tar.zst,$@)
+
+$(SOURCEDIR)/macos_sdk_15.4.tar.zst.stamp: $(SOURCEDIR)/macos_sdk_15.4.tar.zst
+	@$(call verify_sha256,$<,db62998e3d1aeaacf631785fe32433e8f74bb7205345ed328e7483e91329ef05,$@)
+
+$(SOURCEDIR)/macos-sdk-15.4/.unpacked: $(SOURCEDIR)/macos_sdk_15.4.tar.zst.stamp
+	@mkdir -p $(@D)
+	@tar -xf $(basename $<) -C $(@D)
+	@touch $@
+
+ifeq ($(call macos_sdk,15.4),$(abspath $(SOURCEDIR)/macos-sdk-15.4))
+$(DESTDIR)/macos_sdk_15.4/.stamp: $(SOURCEDIR)/macos-sdk-15.4/.unpacked
+endif
+
+# SDK: each version is a separate, architecture-independent archive.
 .PHONY: sdk
 sdk: $(foreach VERSION,$(MACOS_SDK_VERSIONS),$(DESTDIR)/macos_sdk_$(VERSION)/.stamp)
 
@@ -604,60 +646,98 @@ clean_sdk: $(foreach VERSION,$(MACOS_SDK_VERSIONS),clean_sdk_$(VERSION))
 clean_sdk_dist: $(foreach VERSION,$(MACOS_SDK_VERSIONS),clean_sdk_$(VERSION)_dist)
 
 define build_darwin_sdk_target
-
 .PHONY: sdk_$(1)
-sdk_$(1): $$(DESTDIR)/macos_sdk_$(1)/.stamp
+sdk_$(1): $(DESTDIR)/macos_sdk_$(1)/.stamp
 
-.PHONY: clean_sdk_$(1)
+.PHONY: clean_sdk_$(1) clean_sdk_$(1)_dist
 clean_sdk_$(1): clean_sdk_$(1)_dist
-	@rm -rfv $$(BUILDDIR)/universal_darwin/macos_sdk_$(1)
-
-.PHONY: clean_sdk_$(1)_dist
 clean_sdk_$(1)_dist:
-	@rm -rfv $$(DESTDIR)/macos_sdk_$(1)
+	@rm -rfv $(DESTDIR)/macos_sdk_$(1) $(DESTDIR)/macos_sdk_$(1).tar.zst
 
-$(DESTDIR)/macos_sdk_$(1)/.stamp: $(BUILDDIR)/universal_darwin/macos_sdk_$(1) $(ENVIRONMENT)
+$(DESTDIR)/macos_sdk_$(1)/.stamp: $(wildcard $(call macos_sdk,$(1))/SDKSettings.json) $(MACOS_BUILD_CONFIG) Makefile | $(ENVIRONMENT)
+	@test "$$$$(plutil -extract Version raw -o - "$(call macos_sdk,$(1))/SDKSettings.json")" = "$(1)" || { echo "Error: SDK $(1) is missing or mislabeled."; exit 1; }
+	@rm -rf $(DESTDIR)/macos_sdk_$(1)
 	@mkdir -p $(DESTDIR)/macos_sdk_$(1)
-	@cp -R $$</* $(DESTDIR)/macos_sdk_$(1)/
+	@cp -R "$(call macos_sdk,$(1))/." $(DESTDIR)/macos_sdk_$(1)/
+	@rm -f $(DESTDIR)/macos_sdk_$(1)/.unpacked
 	@touch $$@
-
-$(BUILDDIR)/universal_darwin/macos_sdk_$(1):
-	@if [ ! -d "$(MACOS_COMMAND_LINE_TOOLS_PATH)/SDKs/MacOSX$(1).sdk" ]; then \
-		echo "Error: macOS SDK $(1) not found at $(MACOS_COMMAND_LINE_TOOLS_PATH)/SDKs/MacOSX$(1).sdk"; \
-		exit 1; \
-	fi
-	@mkdir -p $$@
-	@cp -R $(MACOS_COMMAND_LINE_TOOLS_PATH)/SDKs/MacOSX$(1).sdk/* $$@
 endef
-
 $(foreach VERSION,$(MACOS_SDK_VERSIONS),$(eval $(call build_darwin_sdk_target,$(VERSION))))
 
-$(DESTDIR)/toolchain_universal_darwin/.stamp: $(BUILDDIR)/universal_darwin/toolchain $(ENVIRONMENT)
-	@mkdir -p $(DESTDIR)/toolchain_universal_darwin
-	@cp -R $</* $(DESTDIR)/toolchain_universal_darwin/
-	@touch $@
+# Package host executables separately; compiler target runtimes remain universal.
+# $(1)=source usr tree, $(2)=destination, $(3)=host architecture
+define package_darwin_toolchain
+set -e -o pipefail; \
+SOURCE="$(abspath $(1))"; TARGET="$(abspath $(2))"; \
+case "$$SOURCE/" in "$$TARGET/"*) echo "Toolchain paths overlap"; exit 1;; esac; \
+case "$$TARGET/" in "$$SOURCE/"*) echo "Toolchain paths overlap"; exit 1;; esac; \
+$(call set_arch_darwin,$(3)) && \
+for TOOL in clang clang++ ld ar nm ranlib strip; do \
+    lipo -verify_arch "$$ARCH" "$$SOURCE/bin/$$TOOL" || exit 1; \
+done && \
+mkdir -p "$$(dirname "$$TARGET")" && \
+WORK=$$(mktemp -d "$$TARGET.XXXXXX") && \
+trap 'rm -rf "$$WORK"' EXIT && \
+cp -R "$$SOURCE/." "$$WORK/" && \
+rm -f "$$WORK/.stamp" "$$WORK/.unpacked" && \
+find "$$WORK" -type f -exec file -N {} + | sed -n '/ (for architecture /d; s/: Mach-O.*//p' | \
+while IFS= read -r FILE; do \
+    case "$$FILE" in \
+        "$$WORK"/lib/clang/*|"$$WORK"/lib/arc/*) continue;; \
+        "$$WORK"/lib/swift/host/*) ;; \
+        "$$WORK"/lib/swift*) continue;; \
+    esac; \
+    ARCHES=$$(lipo -archs "$$FILE") || exit 1; \
+    lipo -verify_arch "$$ARCH" "$$FILE" || exit 1; \
+    if [ "$$ARCHES" != "$$ARCH" ]; then lipo "$$FILE" -thin "$$ARCH" -output "$$FILE" || exit 1; fi; \
+done && \
+rm -rf "$$TARGET" && \
+mv "$$WORK" "$$TARGET"
+endef
 
-$(BUILDDIR)/universal_darwin/toolchain:
-	@mkdir -p $@
-	@cp -R /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/* $@
+# $(1)=platform, $(2)=source toolchain; thin host files while preserving target runtimes.
+define toolchain_darwin_target
+$(DESTDIR)/toolchain_$(1)/.stamp: $(MACOS_BUILD_CONFIG) $(wildcard $(2)/bin/clang $(2)/bin/ld) Makefile | $(ENVIRONMENT)
+	@$$(call package_darwin_toolchain,$(2),$(DESTDIR)/toolchain_$(1),$$(call get_arch,$(1)))
+	@touch $$@
+
+.PHONY: clean_toolchain_$(1) clean_toolchain_$(1)_dist clean_toolchain_$(1)_all clean_toolchain_$(1)_sources
+clean_toolchain_$(1): clean_toolchain_$(1)_dist
+clean_toolchain_$(1)_dist:
+	@rm -rfv $(DESTDIR)/toolchain_$(1) $(DESTDIR)/toolchain_$(1).tar.zst
+clean_toolchain_$(1)_all: clean_toolchain_$(1)
+clean_toolchain_$(1)_sources:
+	@:
+endef
+$(eval $(call toolchain_darwin_target,aarch64_darwin,$(MACOS_BUILD_TOOLCHAIN)))
+$(eval $(call toolchain_darwin_target,x86_64_darwin,$(MACOS_TOOLCHAIN_X86_64)))
 endif
 
 ## macOS utils
 
 ifeq ($(OS),Darwin)
-MACOS_BOOTSTRAP_UTILS = awk expr grep tr toybox
-MACOS_BOOTSTRAP_UTILS_BUILD_PATH := $(BUILDDIR)/universal_darwin/utils
-MACOS_BOOTSTRAP_UTILS_TARGETS := $(subst awk,gawk,$(MACOS_BOOTSTRAP_UTILS))
+MACOS_BOOTSTRAP_UTILS_BUILD_PATH := $(BUILDDIR)/$(HOST_PLATFORM)/utils
 
-$(DESTDIR)/utils_universal_darwin/.stamp: $(foreach UTIL,$(filter-out toybox,$(MACOS_BOOTSTRAP_UTILS)),$(MACOS_BOOTSTRAP_UTILS_BUILD_PATH)/bin/$(UTIL)) $(MACOS_BOOTSTRAP_UTILS_BUILD_PATH)/bin/toybox.stamp
-	@mkdir -p $(DESTDIR)/utils_universal_darwin
-	@cp -R $(MACOS_BOOTSTRAP_UTILS_BUILD_PATH)/* $(DESTDIR)/utils_universal_darwin/
-	@find $(DESTDIR)/utils_universal_darwin -type f -name '*.stamp' -delete 2>/dev/null || true
-	@touch $@
+# Package the existing per-architecture builds directly, without a lipo assembly step.
+define utils_darwin_target
+$(DESTDIR)/utils_$(1)/.stamp: $(BUILDDIR)/$(1)/utils/bin/toybox.stamp $(BUILDDIR)/$(1)/gawk/.stamp $(BUILDDIR)/$(1)/grep/.stamp $(BUILDDIR)/$(1)/expr $(BUILDDIR)/$(1)/tr
+	@rm -rf $(DESTDIR)/utils_$(1)
+	@mkdir -p $(DESTDIR)/utils_$(1)/bin
+	@cp -R $(BUILDDIR)/$(1)/utils/bin/. $(DESTDIR)/utils_$(1)/bin/
+	@cd $(DESTDIR)/utils_$(1)/bin && rm -f toybox.stamp awk expr grep tr egrep fgrep
+	@cp $(BUILDDIR)/$(1)/gawk/bin/gawk $(BUILDDIR)/$(1)/grep/bin/grep $(BUILDDIR)/$(1)/expr $(BUILDDIR)/$(1)/tr $(DESTDIR)/utils_$(1)/bin/
+	@cd $(DESTDIR)/utils_$(1)/bin && ln -sf ./gawk ./awk
+	@touch $$@
 
-$(MACOS_BOOTSTRAP_UTILS_BUILD_PATH)/bin/%: $(BUILDDIR)/universal_darwin/%
-	@mkdir -p $(@D)
-	@cp $< $@
+.PHONY: clean_utils_$(1) clean_utils_$(1)_dist clean_utils_$(1)_all clean_utils_$(1)_sources
+clean_utils_$(1): clean_utils_$(1)_dist
+	@rm -rfv $(BUILDDIR)/$(1)/utils $(BUILDDIR)/$(1)/coreutils $(BUILDDIR)/$(1)/gawk $(BUILDDIR)/$(1)/grep $(BUILDDIR)/$(1)/expr $(BUILDDIR)/$(1)/tr
+clean_utils_$(1)_dist:
+	@rm -rfv $(DESTDIR)/utils_$(1) $(DESTDIR)/utils_$(1).tar.zst
+clean_utils_$(1)_all: clean_utils_$(1) clean_utils_$(1)_sources
+clean_utils_$(1)_sources: clean_coreutils_source clean_gawk_source clean_grep_source clean_toybox_source
+endef
+$(foreach PLATFORM,$(MACOS_PLATFORMS),$(eval $(call utils_darwin_target,$(PLATFORM))))
 endif
 
 # GNU coreutils and other GNU common rules
@@ -678,8 +758,8 @@ endif
 ifeq ($(OS),Darwin)
 # $(1) = package name, $(2) = version, $(3) = sha256 checksum
 define both_darwin_architectures_from_gnu_targets
-$$(foreach ARCH,$(ALL_ARCHES),$(BUILDDIR)/$$(ARCH)_darwin/$(1)): $(SOURCEDIR)/$(1)-$(2)/.unpacked $(ENVIRONMENT)
-	@$$(call build_darwin_and_install,$(SOURCEDIR)/$(1)-$(2),$$(call get_arch,$$(notdir $$(@D))),$$@)
+$$(foreach ARCH,$(ALL_ARCHES),$(BUILDDIR)/$$(ARCH)_darwin/$(1)/.stamp): $(SOURCEDIR)/$(1)-$(2)/.unpacked $(MACOS_BUILD_CONFIG) $(MACOS_BUILD_TOOLCHAIN)/bin/clang $(MACOS_BUILD_TOOLCHAIN)/bin/ld $(MACOS_BUILD_SDK)/SDKSettings.json Makefile $(ENVIRONMENT)
+	@$$(call build_darwin_and_install,$(SOURCEDIR)/$(1)-$(2),$$(call get_arch,$$(notdir $$(abspath $$(@D)/..))),$$(@D))
 
 $(SOURCEDIR)/$(1)-$(2).tar.xz.stamp: $(SOURCEDIR)/$(1)-$(2).tar.xz
 	@$$(call verify_sha256,$$<,$(3),$$@)
@@ -695,34 +775,30 @@ $(eval $(call both_darwin_architectures_from_gnu_targets,coreutils,$(COREUTILS_V
 # expr and tr from GNU coreutils
 define darwin_single_coreutils_targets
 .PHONY: $(1)_darwin
-$(1)_darwin: $(MACOS_BOOTSTRAP_UTILS_BUILD_PATH)/bin/$(1)
+$(1)_darwin: $(BUILDDIR)/$(HOST_PLATFORM)/$(1)
 
 .PHONY: clean_$(1)_darwin
 clean_$(1)_darwin:
-	@rm -rfv $(MACOS_BOOTSTRAP_UTILS_BUILD_PATH)/bin/$(1)
+	@rm -rfv $(BUILDDIR)/$(HOST_PLATFORM)/$(1)
 
 .PHONY: clean_$(1)_darwin_all
 clean_$(1)_darwin_all: clean_$(1)_darwin clean_coreutils_source
 
-$(foreach ARCH,$(ALL_ARCHES),$(eval $(BUILDDIR)/$(ARCH)_darwin/$(1): $(BUILDDIR)/$(ARCH)_darwin/coreutils ; \
-	@cp $$</bin/$$(@F) $$@))
+$(foreach ARCH,$(ALL_ARCHES),$(eval $(BUILDDIR)/$(ARCH)_darwin/$(1): $(BUILDDIR)/$(ARCH)_darwin/coreutils/.stamp ; \
+	@cp $$(@D)/coreutils/bin/$$(@F) $$@))
 endef
 
 $(foreach TOOL,expr tr,$(eval $(call darwin_single_coreutils_targets,$(TOOL))))
 
 # gawk and grep from individual GNU packages
-$(MACOS_BOOTSTRAP_UTILS_BUILD_PATH)/bin/awk: $(MACOS_BOOTSTRAP_UTILS_BUILD_PATH)/bin/gawk
-	@mkdir -p $(@D)
-	@cd $(@D) && ln -sf ./gawk ./awk
-
 # $(1) = package name, $(2) = version, $(3) = sha256 checksum
 define darwin_single_gnu_targets
 .PHONY: $(1)_darwin
-$(1)_darwin: $(MACOS_BOOTSTRAP_UTILS_BUILD_PATH)/bin/$(1)
+$(1)_darwin: $(BUILDDIR)/$(HOST_PLATFORM)/$(1)/.stamp
 
 .PHONY: clean_$(1)_darwin
 clean_$(1)_darwin:
-	@rm -rfv $(MACOS_BOOTSTRAP_UTILS_BUILD_PATH)/bin/$(1) $$(foreach PLATFORM,$$(MACOS_PLATFORMS) $$(HOST_PLATFORM),$(BUILDDIR)/$$(PLATFORM)/$(1)*)
+	@rm -rfv $(BUILDDIR)/$(HOST_PLATFORM)/$(1) $$(foreach PLATFORM,$$(MACOS_PLATFORMS) $$(HOST_PLATFORM),$(BUILDDIR)/$$(PLATFORM)/$(1)*)
 
 .PHONY: clean_$(1)_darwin_all
 clean_$(1)_darwin_all: clean_$(1)_darwin clean_$(1)_source
@@ -740,18 +816,14 @@ $(eval $(call darwin_single_gnu_targets,grep,$(GREP_VERSION),$(GREP_SHA256)))
 
 ## Toybox (macOS utils)
 
-TOYBOX_TARGETS := $(foreach ARCH,$(ALL_ARCHES),$(BUILDDIR)/$(ARCH)_darwin/toybox)
+TOYBOX_TARGETS := $(foreach ARCH,$(ALL_ARCHES),$(BUILDDIR)/$(ARCH)_darwin/utils/bin/toybox.stamp)
 
 .PHONY: toybox_darwin
 toybox_darwin: $(MACOS_BOOTSTRAP_UTILS_BUILD_PATH)/bin/toybox.stamp
 
 .PHONY: clean_toybox_darwin
 clean_toybox_darwin:
-	@cd $(MACOS_BOOTSTRAP_UTILS_BUILD_PATH)/bin && \
-	for cmd in $$(./toybox || echo ""); do \
-		rm -f "$$cmd"; \
-	done
-	@rm -rfv $(MACOS_BOOTSTRAP_UTILS_BUILD_PATH)/bin/toybox* $(TOYBOX_TARGETS)
+	@rm -rfv $(foreach PLATFORM,$(MACOS_PLATFORMS),$(BUILDDIR)/$(PLATFORM)/utils)
 
 .PHONY: clean_toybox_darwin_all
 clean_toybox_darwin_all: clean_toybox_darwin clean_toybox_source
@@ -759,20 +831,6 @@ clean_toybox_darwin_all: clean_toybox_darwin clean_toybox_source
 .PHONY: clean_toybox_source
 clean_toybox_source:
 	@rm -rfv $(SOURCEDIR)/toybox-$(TOYBOX_VERSION)*
-
-# The separate stamp target creates symlinks for the needed toybox utilities.
-$(MACOS_BOOTSTRAP_UTILS_BUILD_PATH)/bin/toybox.stamp: $(MACOS_BOOTSTRAP_UTILS_BUILD_PATH)/bin/toybox
-	@cd $(@D) && \
-	for cmd in $$(./toybox); do \
-		skip="toybox grep egrep fgrep"; \
-		for skipCmd in $$skip; do \
-			if [ "$$cmd" = "$$skipCmd" ]; then \
-				continue 2; \
-			fi; \
-		done && \
-		ln -sf ./toybox "$$cmd"; \
-	done
-	@touch $@
 
 # Build toybox for Darwin
 # $(1)=source dir, $(2)=arch, $(3)=destination
@@ -786,18 +844,20 @@ WORK=$$(mktemp -d) && \
 trap "rm -rf $$WORK" EXIT && \
 cp -R $(CURDIR)/$(1)/* $$WORK && \
 cd $$WORK && \
+$(call darwin_compiler) && \
 MAKEFLAGS= $(MAKE) macos_defconfig && \
-$(MAKE) -j$$(nproc) CFLAGS="-Os -target $$ARCH-apple-darwin" && \
+$(MAKE) -j$(BUILD_JOBS) && \
 chmod +w toybox && \
-strip -S toybox && \
-cp toybox $(CURDIR)/$(3)
+"$(MACOS_BUILD_TOOLCHAIN)/bin/strip" -S toybox && \
+PREFIX="$(abspath $(3))" scripts/install.sh --symlink --force && \
+touch "$(abspath $(3))/toybox.stamp"
 endef
 
-$(BUILDDIR)/aarch64_darwin/toybox: $(SOURCEDIR)/toybox-$(TOYBOX_VERSION)/.unpacked $(ENVIRONMENT)
-	@$(call build_toybox_darwin,$(SOURCEDIR)/toybox-$(TOYBOX_VERSION),aarch64,$@)
+$(BUILDDIR)/aarch64_darwin/utils/bin/toybox.stamp: $(SOURCEDIR)/toybox-$(TOYBOX_VERSION)/.unpacked $(MACOS_BUILD_CONFIG) $(MACOS_BUILD_TOOLCHAIN)/bin/clang $(MACOS_BUILD_TOOLCHAIN)/bin/ld $(MACOS_BUILD_SDK)/SDKSettings.json Makefile $(ENVIRONMENT)
+	@$(call build_toybox_darwin,$(SOURCEDIR)/toybox-$(TOYBOX_VERSION),aarch64,$(@D))
 
-$(BUILDDIR)/x86_64_darwin/toybox: $(SOURCEDIR)/toybox-$(TOYBOX_VERSION)/.unpacked $(ENVIRONMENT)
-	@$(call build_toybox_darwin,$(SOURCEDIR)/toybox-$(TOYBOX_VERSION),x86_64,$@)
+$(BUILDDIR)/x86_64_darwin/utils/bin/toybox.stamp: $(SOURCEDIR)/toybox-$(TOYBOX_VERSION)/.unpacked $(MACOS_BUILD_CONFIG) $(MACOS_BUILD_TOOLCHAIN)/bin/clang $(MACOS_BUILD_TOOLCHAIN)/bin/ld $(MACOS_BUILD_SDK)/SDKSettings.json Makefile $(ENVIRONMENT)
+	@$(call build_toybox_darwin,$(SOURCEDIR)/toybox-$(TOYBOX_VERSION),x86_64,$(@D))
 
 $(SOURCEDIR)/toybox-$(TOYBOX_VERSION).tar.gz.stamp: $(SOURCEDIR)/toybox-$(TOYBOX_VERSION).tar.gz
 	@$(call verify_sha256,$<,$(TOYBOX_SHA256),$@)
@@ -828,27 +888,6 @@ $(DESTDIR)/%.tar.zst: $(DESTDIR)/%/.stamp
 $(DESTDIR)/%.tar.zst.sha256sum: $(DESTDIR)/%.tar.zst
 	@$(sha256) $< > $@
 
-# Create a fat mach-o binary from two single-arch mach-o binaries.
-ifeq ($(OS),Darwin)
-define universal_darwin_target
-.PRECIOUS: $(BUILDDIR)/universal_darwin/$(1)
-$(BUILDDIR)/universal_darwin/$(1): $(BUILDDIR)/aarch64_darwin/$(2) $(BUILDDIR)/x86_64_darwin/$(2)
-	@mkdir -p $$(@D)
-	@lipo -create $$^ -output $$@
-endef
-$(foreach TOOL,dash expr toybox tr,$(eval $(call universal_darwin_target,$(TOOL),$(TOOL))))
-
-# For gawk/grep, the build target is a directory (via make install), but lipo needs the binary.
-# We depend on the directory and reference the binary path in the recipe.
-define universal_darwin_installed_target
-.PRECIOUS: $(BUILDDIR)/universal_darwin/$(1)
-$(BUILDDIR)/universal_darwin/$(1): $(BUILDDIR)/aarch64_darwin/$(1) $(BUILDDIR)/x86_64_darwin/$(1)
-	@mkdir -p $$(@D)
-	@lipo -create $(BUILDDIR)/aarch64_darwin/$(1)/bin/$(1) $(BUILDDIR)/x86_64_darwin/$(1)/bin/$(1) -output $$@
-endef
-$(foreach TOOL,gawk grep,$(eval $(call universal_darwin_installed_target,$(TOOL))))
-endif
-
 # Set ARCH with the corresponding string for the target arch.
 define set_arch_darwin
 if [ $(1) = "aarch64" ]; then \
@@ -872,6 +911,64 @@ fi
 endef
 
 ifeq ($(OS),Darwin)
+# Inspect both bundles and execute only tools built for this host.
+define check_darwin_bundles
+set -e -o pipefail; \
+for ARCH in $(ALL_ARCHES); do \
+    APPLE_ARCH=$$ARCH; [ "$$ARCH" != aarch64 ] || APPLE_ARCH=arm64; \
+    for COMPONENT in dash utils toolchain; do \
+        BIN="$(DESTDIR)/$${COMPONENT}_$${ARCH}_darwin/bin"; \
+        case $$COMPONENT in dash) TOOLS="dash sh";; utils) TOOLS="toybox awk gawk expr grep tr";; toolchain) TOOLS="clang clang++ ld ar nm ranlib strip";; esac; \
+        for TOOL in $$TOOLS; do test "$$(lipo -archs "$$BIN/$$TOOL")" = "$$APPLE_ARCH"; done; \
+    done; \
+    for FILE in $(DESTDIR)/utils_$${ARCH}_darwin/bin/*; do test -e "$$FILE"; done; \
+    for FILE in $(DESTDIR)/dash_$${ARCH}_darwin/bin/dash $(addprefix $(DESTDIR)/utils_$${ARCH}_darwin/bin/,gawk grep expr tr toybox); do \
+        test "$$(otool -l "$$FILE" | awk '/^[[:space:]]*minos / { print $$2 }')" = "$(MACOS_DEPLOYMENT_TARGET)"; \
+        if otool -L "$$FILE" | sed 1d | grep -vE '^[[:space:]]+(/usr/lib/|/System/Library/)'; then echo "Unexpected dependency: $$FILE"; exit 1; fi; \
+    done; \
+done; \
+for VERSION in $(MACOS_SDK_VERSIONS); do \
+    test "$$(plutil -extract Version raw -o - "$(DESTDIR)/macos_sdk_$$VERSION/SDKSettings.json")" = "$$VERSION"; \
+done; \
+UTILS="$(abspath $(DESTDIR))/utils_$(HOST_PLATFORM)/bin"; \
+"$$UTILS/gawk" --version | sed -n 1p | grep -F '5.4.0'; \
+"$$UTILS/expr" --version | sed -n 1p | grep -F '9.12'; \
+test "$$("$$UTILS/awk" 'BEGIN { print 6 * 7 }')" = 42; \
+test "$$("$$UTILS/expr" 6 '*' 7)" = 42; \
+test "$$(printf 'other\ntest\n' | "$$UTILS/grep" -E '^test$$')" = test; \
+test "$$(printf test | "$$UTILS/tr" a-z A-Z)" = TEST; \
+test "$$("$$UTILS/toybox" printf '%s' ok)" = ok; \
+test "$$(PATH="$$UTILS:/usr/bin:/bin" $(DESTDIR)/dash_$(HOST_PLATFORM)/bin/dash -c 'printf abc | tr a-z A-Z')" = ABC; \
+WORK=$$(mktemp -d) && trap 'rm -rf "$$WORK"' EXIT; \
+printf '#include <stdio.h>\nint main(void) { puts("ok"); return 0; }\n' > "$$WORK/main.c"; \
+printf '#include <iostream>\nint main() { std::cout << "ok" << std::endl; }\n' > "$$WORK/main.cpp"; \
+for LANGUAGE in c cpp; do \
+    COMPILER=clang; [ "$$LANGUAGE" = c ] || COMPILER=clang++; \
+    for ARCH in $(ALL_ARCHES); do \
+        APPLE_ARCH=$$ARCH; [ "$$ARCH" != aarch64 ] || APPLE_ARCH=arm64; \
+        $(DESTDIR)/toolchain_$(HOST_PLATFORM)/bin/$$COMPILER -target "$$APPLE_ARCH-apple-macos$(MACOS_DEPLOYMENT_TARGET)" \
+            -isysroot "$(abspath $(DESTDIR))/macos_sdk_$(if $(filter aarch64,$(ARCH)),27.0,26.5)" "$$WORK/main.$$LANGUAGE" -o "$$WORK/program"; \
+        test "$$(lipo -archs "$$WORK/program")" = "$$APPLE_ARCH"; \
+        if [ "$$ARCH" = "$(ARCH)" ]; then test "$$("$$WORK/program")" = ok; fi; \
+    done; \
+done; \
+echo "Darwin architecture, deployment, SDK, utility, and C/C++ checks passed."; \
+echo "Foreign-architecture executables were inspected but not run."
+endef
+
+# Target flags must also reach generators that invoke CC without CFLAGS.
+# WORK and ARCH are set by the existing Darwin build recipes.
+define darwin_compiler
+for COMPILER in clang clang++; do \
+	printf '#!/bin/sh\nexec "%s" -target "%s" -isysroot "%s" "$$@"\n' "$(MACOS_BUILD_TOOLCHAIN)/bin/$$COMPILER" "$$ARCH-apple-macos$(MACOS_DEPLOYMENT_TARGET)" "$(MACOS_BUILD_SDK)" > "$$WORK/$$COMPILER" || exit 1; \
+	chmod +x "$$WORK/$$COMPILER" || exit 1; \
+done && \
+export CC="$$WORK/clang" CXX="$$WORK/clang++" CFLAGS=-Os CXXFLAGS=-Os && \
+export HOSTCC="$(MACOS_BUILD_TOOLCHAIN)/bin/clang" CC_FOR_BUILD="$(MACOS_BUILD_TOOLCHAIN)/bin/clang" && \
+export AR="$(MACOS_BUILD_TOOLCHAIN)/bin/ar" RANLIB="$(MACOS_BUILD_TOOLCHAIN)/bin/ranlib" && \
+export SDKROOT="$(MACOS_BUILD_SDK)" MACOSX_DEPLOYMENT_TARGET="$(MACOS_DEPLOYMENT_TARGET)"
+endef
+
 # Build a Darwin binary for a single target
 # $(1)=source dir, $(2)=arch, $(3)=binary path in build, $(4)=destination
 define build_darwin
@@ -881,8 +978,9 @@ $(call set_arch_darwin,$(2)) && \
 WORK=$$(mktemp -d) && \
 trap "rm -rf $$WORK" EXIT && \
 cd $$WORK && \
-$(CURDIR)/$(1)/configure --host=$$ARCH-apple-darwin CFLAGS="-Os -target $$ARCH-apple-darwin" && \
-$(MAKE) -j$$(nproc) && \
+$(call darwin_compiler) && \
+$(CURDIR)/$(1)/configure --build=$$(uname -m)-apple-darwin --host=$$ARCH-apple-darwin --disable-nls && \
+$(MAKE) -j$(BUILD_JOBS) && \
 mkdir -p $$(dirname $(CURDIR)/$(4)) && \
 cp $$WORK/$(3) $(CURDIR)/$(4)
 endef
@@ -896,10 +994,12 @@ $(call set_arch_darwin,$(2)) && \
 WORK=$$(mktemp -d) && \
 trap "rm -rf $$WORK" EXIT && \
 cd $$WORK && \
-$(CURDIR)/$(1)/configure --prefix=$(CURDIR)/$(3) --host=$$ARCH-apple-darwin \
-	CFLAGS="-Os -target $$ARCH-apple-darwin" --disable-perl-regexp && \
-$(MAKE) -j$$(nproc) && \
-$(MAKE) install
+$(call darwin_compiler) && \
+$(CURDIR)/$(1)/configure --prefix=$(CURDIR)/$(3) --build=$$(uname -m)-apple-darwin --host=$$ARCH-apple-darwin \
+	--disable-nls $(if $(filter grep-%,$(notdir $(1))),--disable-perl-regexp) $(if $(filter gawk-%,$(notdir $(1))),--without-readline --without-mpfr) && \
+$(MAKE) -j$(BUILD_JOBS) && \
+$(MAKE) install && \
+touch $(CURDIR)/$(3)/.stamp
 endef
 endif
 

@@ -2,7 +2,7 @@
 
 This package provides the preliminary components required to bootstrap the [Tangram](https://www.tangram.dev) ecosystem on [Linux](https://www.kernel.org) and [macOS](https://www.apple.com/macos/).
 
-**TL;DR** Run `make -j"$(nproc)" && tg test` in this directory.
+**TL;DR** Run `make -j4` in this directory. On macOS, use `make -j4 all_darwin` to build both architectures and `make check_darwin` to validate them.
 
 Use the provided `Makefile` to produce these components ahead of running Tangram. Basic usage:
 
@@ -11,7 +11,7 @@ Use the provided `Makefile` to produce these components ahead of running Tangram
 - `make clean` - Remove all build artifacts but retain downloaded sources.
 - `make clean_all` - Remove all build artifacts AND sources.
 
-After `make` completes, use `tg test` to assert that each expected component in the `dist/` directory is populated.
+Completed components and archives appear in `dist/`, with checksums in `dist/SHASUMS256.txt`. Only supported, completed components are archived; stale universal bundles are excluded.
 
 On macOS, the `list_all_platforms` target enumerates every available component/platform combination. The makefile can optionally build the Linux targets as well using [Docker Desktop](#docker-platform). Use `make all_platforms` to build every available target.
 
@@ -21,7 +21,7 @@ See [**Prerequisites**](#prerequisites) about the required host environment, **[
 
 - `artifact` - Anything produced as a result of running a `make` target.
 - `component` - A component the `bootstrap` package expects to provide, such as `dash` or `toolchain`.
-- `platform` - Either `x86_64_linux`, `aarch64_linux`, or `universal_darwin`.
+- `platform` - Either `x86_64_linux`, `aarch64_linux`, `x86_64_darwin`, or `aarch64_darwin`.
 - `target` - An action supported by this makefile. These can be ["phony"](https://www.gnu.org/software/make/manual/html_node/Phony-Targets.html) (`clean`, `toolchain`) or refer to an actual output file: `$SOURCEDIR/dash-0.5.13.5.tar.gz`.
 
 ## Prerequisites
@@ -30,14 +30,14 @@ This makefile is intended to be as portable as possible. However, it must necess
 
 Your host system must run of of these operating systems:
 
-- macOS 13+.
+- macOS with a compatible Apple toolchain and the SDKs listed below. Packaged utilities target macOS 14.0; the supplied Clang executables also record a minimum of 14.0.
 - Linux. Confirmed to build on [Ubuntu 18.04 LTS](https://releases.ubuntu.com/18.04/) (Bionic Beaver) and higher.
 
 You also need some standard system utilities for compiling C code, fetching and verifying network content, manipulating text, and traversing your filesystem. To see a complete list, use `make list_needed_commands`. This is the full set on macOS:
 
 ```shellsession
 $ make list_needed_commands
-ar awk bash bzip2 c++ cc cd chmod cp curl docker find gsed gzip install ld lipo ln make mkdir rm shasum strip tar touch xz zstd
+ar awk bash bzip2 c++ cc cd chmod cmp cp curl file find gsed gzip install ld lipo ln make mkdir otool plutil rm shasum strip tar touch xcrun xz zstd
 ```
 
 ### MacOS
@@ -46,7 +46,7 @@ ar awk bash bzip2 c++ cc cd chmod cp curl docker find gsed gzip install ld lipo 
 xcode-select --install && brew install gnu-sed zstd
 ```
 
-You also need [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running.
+[Docker Desktop](https://www.docker.com/products/docker-desktop/) is needed only for Linux builds.
 
 Unfortunately, you **must** install [`GNU sed`](https://www.gnu.org/software/sed/) and have it available as `gsed` on your `$PATH` to build the `utils` target.
 
@@ -137,7 +137,17 @@ Provided for both Linux and MacOS platforms:
 
 - `sdk` - Versioned headers and metadata for macOS APIs. Not to be confused with the [Tangram SDK](https://github.com/tangramdotdev/packages/blob/main/packages/std/sdk.tg)!
 
-On macOS, the distribution platform is always `universal_darwin`. Phony targets created for `x86_64_darwin` and `aarch64_darwin` can be used to manage intermediate build artifacts, but will not appear in `DESTDIR`.
+macOS executable components now ship as separate `<component>_aarch64_darwin.tar.zst` and `<component>_x86_64_darwin.tar.zst` archives, matching Linux. SDK archives remain architecture-independent: `macos_sdk_<version>.tar.zst`, with versions 12.1, 14.5, 15.2, 15.4, 26.5, and 27.0.
+
+The ARM toolchain comes from the selected Xcode/Command Line Tools installation (`xcrun --find clang`). The Intel toolchain is downloaded from [bootstrap v2026.01.26](https://github.com/tangramdotdev/bootstrap/releases/tag/v2026.01.26), verified by SHA-256, and thinned to Intel host binaries. Compiler target runtimes retain their original architectures. This intentionally depends on the historical release; retain its downloaded archive in `sources/` as an additional copy. Set `MACOS_TOOLCHAIN_X86_64=/path/to/older/toolchain/usr` to use a separately retained installation.
+
+SDKs come from `/Library/Developer/CommandLineTools/SDKs/`. SDK 15.4 falls back to its checksum-pinned archive from bootstrap v2026.07.29 when absent locally.
+
+Utilities for both architectures are built with the selected native compiler and SDK 27.0, targeting macOS 14.0. The Intel toolchain's older linker cannot read SDK 27's `arm64e.x1` entries: native Intel users must select SDK 26.5 or an older compatible SDK. ARM-hosted Intel cross-builds using Xcode 27 can use SDK 27.
+
+The build inputs can be overridden with `MACOS_BUILD_TOOLCHAIN`, `MACOS_BUILD_SDK`, `MACOS_DEPLOYMENT_TARGET`, and `MACOS_COMMAND_LINE_TOOLS_PATH`. `BUILD_JOBS` defaults to 4 jobs per utility build. Settings and compiler/SDK metadata changes invalidate affected outputs.
+
+Consumers in `packages/std/bootstrap.tg.ts` must select Darwin archives by the architecture **running** the compiler, add SDK 27.0 and the new archive checksums, and allow an explicit older SDK for the Intel toolchain. Package deployment targets are independent of bootstrap utilities; SDK 27 requires at least macOS 12.0, so the packages repo's current 11.0 default also needs adjustment.
 
 ## Usage
 
@@ -147,14 +157,16 @@ The build manages the following directories:
 - `BUILDDIR` - Intermediate build artifacts. Default: `build`.
 - `SOURCEDIR` - Source code, signatures, checksums. Default: `sources`.
 
-The `bootstrap` Tangram package expects the contents produced at `DESTDIR` to be available at `.dist/`, adjacent to `tangram.tg`. Use `tg test` to assert that all required components are present after running the build.
+The `bootstrap` Tangram package consumes the published archives and their checksums. This repository has no Tangram module; validate Darwin bundles with `make check_darwin`. It checks architectures, deployment targets, SDK versions, native utilities, and C/C++ cross-linking. Intel macOS runtime testing requires an Intel Mac or Rosetta.
 
 The locations and contents of `BUILDDIR` and `SOURCEDIR` are not meaningful or known to the Tangram package.
 
 ### Building
 
 - `all` - equivalent to running `make` with no target defined. Build each supported entrypoint for your host platform.
-- `all_platforms` - On MacOS, additionally build the `x86_64_linux` and `aarch64_linux` targets for supported components.
+- `all_darwin` - On macOS, build both Darwin architectures and all versioned SDKs.
+- `all_platforms` - On macOS, build both Darwin and both Linux architectures.
+- `check_darwin` - Build and validate both Darwin architectures, running native smoke tests.
 - `<component>` - Build a single component for your detected host platform.
 - `<component>_<platform>` - Build a single component for a specific platform, if supported.
 - `tarballs` - Create compressed tarballs for each component.
@@ -176,9 +188,9 @@ Additionally, each component defines cleaning targets which only remove its own 
 - `clean_<component>(_<platform>)?_dist`
 - `clean_<component>(_<platform>)?_sources`
 
-Omitting the platform is equivalent to specifying your host platform. For example, `clean_dash_dist` and `clean_dash_universal_darwin_dist` are equivalent on a macOS computer.
+Omitting the platform is equivalent to specifying your host platform. For example, `clean_dash_dist` and `clean_dash_aarch64_darwin_dist` are equivalent on an ARM Mac.
 
-Note that multiple platforms may depend on the same sources. Using a platform-specific target to clean sources will affect all platforms that share that source. For example, running `make clean_dash_x86_64_linux_sources` will force `make dash_universal_darwin` to re-download the source code as well.
+Note that multiple platforms may depend on the same sources. Using a platform-specific target to clean sources will affect all platforms that share that source. For example, running `make clean_dash_x86_64_linux_sources` will force `make dash_aarch64_darwin` to re-download the source code as well.
 
 ### Listing
 

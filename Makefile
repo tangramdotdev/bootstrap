@@ -1030,6 +1030,7 @@ docker_images: $(BUILDDIR)/docker_images.stamp
 docker_stopall:
 	@docker container stop $$(docker container ls -q --filter name=tangram-bootstrap) 2>/dev/null || true
 	@docker buildx stop tangram_bootstrap_builder 2>/dev/null || true
+	@docker buildx stop tangram_bootstrap_glibc_builder 2>/dev/null || true
 
 .PHONY: clean_docker
 clean_docker: docker_stopall clean_docker_glibc
@@ -1041,10 +1042,10 @@ clean_docker: docker_stopall clean_docker_glibc
 # Rebuild Docker images only when Dockerfile changes
 $(BUILDDIR)/docker_images.stamp: Dockerfile
 	$(stop_builder)
-	@docker buildx create --use --platform linux/amd64,linux/arm64 --name tangram_bootstrap_builder
-	@docker buildx inspect --bootstrap
-	@docker buildx build --platform linux/amd64 --load -t tangram_bootstrap_x86_64 -f Dockerfile .
-	@docker buildx build --platform linux/arm64 --load -t tangram_bootstrap_aarch64 -f Dockerfile .
+	@docker buildx create --platform linux/amd64,linux/arm64 --name tangram_bootstrap_builder
+	@docker buildx inspect tangram_bootstrap_builder --bootstrap
+	@docker buildx build --builder tangram_bootstrap_builder --platform linux/amd64 --load -t tangram_bootstrap_x86_64 -f Dockerfile .
+	@docker buildx build --builder tangram_bootstrap_builder --platform linux/arm64 --load -t tangram_bootstrap_aarch64 -f Dockerfile .
 	$(stop_builder)
 	@mkdir -p $(@D) && touch $@
 
@@ -1070,7 +1071,7 @@ $(call verify_docker_image,$(2))
 docker run \
 	--rm \
 	--platform linux/$(call docker_platform,$(2)) \
-	--name "tangram-bootstrap-$(@F)-$(notdir $(@D))" \
+	--name "tangram-bootstrap-$(2)-$(@F)-$(notdir $(@D))" \
 	-v "$$PWD:/bootstrap" \
 	tangram_bootstrap_$(2) \
 	bash -eu -o pipefail -c \
@@ -1084,18 +1085,24 @@ docker_glibc_images: $(BUILDDIR)/docker_glibc_images.stamp
 
 .PHONY: clean_docker_glibc
 clean_docker_glibc:
+	$(stop_glibc_builder)
 	@docker rmi tangram_bootstrap_glibc_x86_64 2>/dev/null || true
 	@docker rmi tangram_bootstrap_glibc_aarch64 2>/dev/null || true
 	@rm -rfv $(BUILDDIR)/docker_glibc_images.stamp
 
 $(BUILDDIR)/docker_glibc_images.stamp: Dockerfile.glibc
-	$(stop_builder)
-	@docker buildx create --use --platform linux/amd64,linux/arm64 --name tangram_bootstrap_builder
-	@docker buildx inspect --bootstrap
-	@docker buildx build --platform linux/amd64 --load -t tangram_bootstrap_glibc_x86_64 -f Dockerfile.glibc .
-	@docker buildx build --platform linux/arm64 --load -t tangram_bootstrap_glibc_aarch64 -f Dockerfile.glibc .
-	$(stop_builder)
+	$(stop_glibc_builder)
+	@docker buildx create --platform linux/amd64,linux/arm64 --name tangram_bootstrap_glibc_builder
+	@docker buildx inspect tangram_bootstrap_glibc_builder --bootstrap
+	@docker buildx build --builder tangram_bootstrap_glibc_builder --platform linux/amd64 --load -t tangram_bootstrap_glibc_x86_64 -f Dockerfile.glibc .
+	@docker buildx build --builder tangram_bootstrap_glibc_builder --platform linux/arm64 --load -t tangram_bootstrap_glibc_aarch64 -f Dockerfile.glibc .
+	$(stop_glibc_builder)
 	@mkdir -p $(@D) && touch $@
+
+define stop_glibc_builder
+@docker buildx stop tangram_bootstrap_glibc_builder 2>/dev/null || true
+@docker buildx rm tangram_bootstrap_glibc_builder 2>/dev/null || true
+endef
 
 define verify_glibc_docker_image
 @if ! docker image inspect tangram_bootstrap_glibc_$(1) >/dev/null 2>&1; then \
@@ -1110,7 +1117,7 @@ docker run \
 	--rm \
 	--platform linux/$(call docker_platform,$(2)) \
 	--user $$(id -u):$$(id -g) \
-	--name "tangram-bootstrap-$(@F)-$(notdir $(@D))" \
+	--name "tangram-bootstrap-$(2)-$(@F)-$(notdir $(@D))" \
 	-v "$$PWD:/bootstrap" \
 	tangram_bootstrap_glibc_$(2) \
 	bash -eu -o pipefail -c \

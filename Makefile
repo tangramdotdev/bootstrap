@@ -74,7 +74,6 @@ LINUX_PLATFORMS := $(foreach ARCH,$(ALL_ARCHES),$(ARCH)_linux)
 ifeq ($(OS),Darwin)
 ALL_CROSS_COMPONENTS := $(sort $(COMMON_COMPONENTS) $(LINUX_COMPONENTS))
 ALL_HOST_COMPONENTS := $(sort $(COMMON_COMPONENTS) $(MACOS_COMPONENTS))
-ALL_COMPONENTS := $(sort $(COMMON_COMPONENTS) $(LINUX_COMPONENTS) $(MACOS_COMPONENTS))
 MACOS_PLATFORMS := $(foreach ARCH,$(ALL_ARCHES),$(ARCH)_darwin)
 SINGLE_TARGET_PLATFORMS := $(LINUX_PLATFORMS) $(MACOS_PLATFORMS)
 HOST_PLATFORM := $(ARCH)_darwin
@@ -82,7 +81,6 @@ ALL_PLATFORMS := $(SINGLE_TARGET_PLATFORMS)
 PHONY_TARGET_PLATFORMS := $(SINGLE_TARGET_PLATFORMS)
 else ifeq ($(OS),Linux)
 ALL_HOST_COMPONENTS := $(sort $(COMMON_COMPONENTS) $(LINUX_COMPONENTS))
-ALL_COMPONENTS := $(sort $(ALL_HOST_COMPONENTS))
 HOST_PLATFORM := $(ARCH)_linux
 ALL_PLATFORMS := $(LINUX_PLATFORMS)
 SINGLE_TARGET_PLATFORMS := $(LINUX_PLATFORMS)
@@ -111,6 +109,7 @@ endif
 
 # Preserve intermediate completion stamps without skipping missing new source versions.
 .PRECIOUS: %/.unpacked %/.stamp
+.DELETE_ON_ERROR:
 
 # The default target builds all components and creates tarballs.
 .PHONY: all
@@ -304,7 +303,10 @@ clean_env_$(1)_dist:
 	@rm -rfv $(DESTDIR)/env_$(1)
 
 .PHONY: clean_env_$(1)_all
-clean_env_$(1)_all: clean_env_$(1) clean_env_source
+clean_env_$(1)_all: clean_env_$(1) clean_env_$(1)_sources
+
+.PHONY: clean_env_$(1)_sources
+clean_env_$(1)_sources: clean_env_source
 
 $(DESTDIR)/env_$(1)/.stamp: $(BUILDDIR)/$(1)/env
 	@mkdir -p $(DESTDIR)/env_$(1)/bin
@@ -484,7 +486,10 @@ clean_toolchain_$(1)_dist:
 	@rm -rfv $(DESTDIR)/toolchain_$(1)
 
 .PHONY: clean_toolchain_$(1)_all
-clean_toolchain_$(1)_all: clean_toolchain_$(1) clean_musl_cc_source
+clean_toolchain_$(1)_all: clean_toolchain_$(1) clean_toolchain_$(1)_sources
+
+.PHONY: clean_toolchain_$(1)_sources
+clean_toolchain_$(1)_sources: clean_musl_cc_source
 endef
 
 $(foreach PLATFORM,$(LINUX_PLATFORMS),$(eval $(call toolchain_linux_targets,$(PLATFORM))))
@@ -624,25 +629,20 @@ sdk_$(1): $$(DESTDIR)/macos_sdk_$(1)/.stamp
 
 .PHONY: clean_sdk_$(1)
 clean_sdk_$(1): clean_sdk_$(1)_dist
-	@rm -rfv $$(BUILDDIR)/universal_darwin/macos_sdk_$(1)
 
 .PHONY: clean_sdk_$(1)_dist
 clean_sdk_$(1)_dist:
 	@rm -rfv $$(DESTDIR)/macos_sdk_$(1)
 
-$(DESTDIR)/macos_sdk_$(1)/.stamp: $(BUILDDIR)/universal_darwin/macos_sdk_$(1) $(ENVIRONMENT)
-	@rm -rf $(DESTDIR)/macos_sdk_$(1)
-	@mkdir -p $(DESTDIR)/macos_sdk_$(1)
-	@cp -R $$</* $(DESTDIR)/macos_sdk_$(1)/
-	@touch $$@
-
-$(BUILDDIR)/universal_darwin/macos_sdk_$(1):
+$(DESTDIR)/macos_sdk_$(1)/.stamp: | $(ENVIRONMENT)
 	@if [ ! -d "$(MACOS_COMMAND_LINE_TOOLS_PATH)/SDKs/MacOSX$(1).sdk" ]; then \
 		echo "Error: macOS SDK $(1) not found at $(MACOS_COMMAND_LINE_TOOLS_PATH)/SDKs/MacOSX$(1).sdk"; \
 		exit 1; \
 	fi
-	@mkdir -p $$@
-	@cp -R $(MACOS_COMMAND_LINE_TOOLS_PATH)/SDKs/MacOSX$(1).sdk/* $$@
+	@rm -rf $$(@D)
+	@mkdir -p $$(@D)
+	@cp -R "$(MACOS_COMMAND_LINE_TOOLS_PATH)/SDKs/MacOSX$(1).sdk/." $$(@D)/
+	@touch $$@
 endef
 
 $(foreach VERSION,$(MACOS_SDK_VERSIONS),$(eval $(call build_darwin_sdk_target,$(VERSION))))
@@ -769,8 +769,6 @@ $(eval $(call darwin_single_gnu_targets,grep,$(GREP_VERSION),$(GREP_SHA256)))
 
 ## Toybox (macOS utils)
 
-TOYBOX_TARGETS := $(foreach ARCH,$(ALL_ARCHES),$(BUILDDIR)/$(ARCH)_darwin/utils/bin/toybox.stamp)
-
 .PHONY: toybox_darwin
 toybox_darwin: $(MACOS_BOOTSTRAP_UTILS_BUILD_PATH)/bin/toybox.stamp
 
@@ -835,7 +833,7 @@ $(foreach EXT,$(SUPPORTED_EXTENSIONS),$(eval $(call unpack_tarball,$(EXT))))
 
 # Create tarballs from output directories
 $(DESTDIR)/%.tar.zst: $(DESTDIR)/%/.stamp
-	@tar -cf - --exclude='.stamp' -C $(DESTDIR)/$* . | zstd -z -19 -T0 -f -o $@ -
+	@bash -o pipefail -c 'tar -cf - --exclude=".stamp" -C "$$1" . | zstd -z -19 -T0 -f -o "$$2" -' -- "$(DESTDIR)/$*" "$@"
 
 $(DESTDIR)/%.tar.zst.sha256sum: $(DESTDIR)/%.tar.zst
 	@$(sha256) $< > $@

@@ -809,9 +809,17 @@ endef
 SUPPORTED_EXTENSIONS = .tar.bz2 .tar.gz .tgz .tar.xz
 $(foreach EXT,$(SUPPORTED_EXTENSIONS),$(eval $(call unpack_tarball,$(EXT))))
 
-# Create tarballs from output directories
-$(DESTDIR)/%.tar.zst: $(DESTDIR)/%/.stamp
-	@bash -o pipefail -c 'tar -cf - --exclude=".stamp" -C "$$1" . | zstd -z -19 -T0 -f -o "$$2" -' -- "$(DESTDIR)/$*" "$@"
+# Do not serialize host metadata into portable bundles.
+TAR_METADATA_FLAGS := --no-acls --no-xattrs
+ifeq ($(OS),Darwin)
+TAR_METADATA_FLAGS += --no-mac-metadata --no-fflags
+endif
+
+# Create tarballs from output directories.
+$(DESTDIR)/%.tar.zst: $(DESTDIR)/%/.stamp Makefile
+	@bash -o pipefail -c 'COPYFILE_DISABLE=1 tar $(TAR_METADATA_FLAGS) -cf - \
+		--exclude=".stamp" --exclude="._*" --exclude=".DS_Store" --exclude="__MACOSX" \
+		-C "$$1" . | zstd -z -19 -T0 -f -o "$$2" -' -- "$(DESTDIR)/$*" "$@"
 
 $(DESTDIR)/%.tar.zst.sha256sum: $(DESTDIR)/%.tar.zst
 	@$(sha256) $< > $@

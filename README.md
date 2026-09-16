@@ -13,6 +13,8 @@ Use the provided `Makefile` to produce these components ahead of running Tangram
 
 Completed components and archives appear in `dist/`, with checksums in `dist/SHASUMS256.txt`. Only supported, completed components are archived.
 
+Archives omit AppleDouble sidecars, Finder metadata, extended attributes, ACLs, file flags, and build stamps. Packaging uses the system tar on macOS or GNU tar on Linux.
+
 On macOS, the `list_all_platforms` target enumerates every available component/platform combination. The makefile can optionally build the Linux targets as well using [Docker Desktop](#docker-platform). Use `make all_platforms` to build every available target.
 
 See [**Prerequisites**](#prerequisites) about the required host environment, **[Components](#components)** about the included software, and [**Usage**](#usage) about additional provided targets.
@@ -55,7 +57,7 @@ Unfortunately, you **must** install [`GNU sed`](https://www.gnu.org/software/sed
 Tested on version 3.15 and higher.
 
 ```txt
-apk add alpine-sdk bash curl docker xz zstd
+apk add alpine-sdk bash curl docker tar xz zstd
 ```
 
 ### Fedora

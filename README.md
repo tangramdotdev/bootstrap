@@ -139,17 +139,13 @@ Provided for both Linux and MacOS platforms:
 
 macOS executable components now ship as separate `<component>_aarch64_darwin.tar.zst` and `<component>_x86_64_darwin.tar.zst` archives, matching Linux. SDK archives remain architecture-independent: `macos_sdk_<version>.tar.zst`, with versions 12.1, 14.5, 15.2, 26.5, and 27.0.
 
-The ARM toolchain is copied from the selected Xcode/Command Line Tools installation (`xcrun --find clang`). The Intel toolchain is permanently frozen: it is downloaded from [bootstrap v2026.09.16](https://github.com/tangramdotdev/bootstrap/releases/tag/v2026.09.16), verified by SHA-256, and reused unchanged. It was thinned once from bootstrap v2026.01.26; compiler target runtimes retain their original architectures. Retain the archive in `sources/` as an additional copy.
-
-Before publishing v2026.09.16, use the prepared Intel archive at `sources/toolchain_darwin_v2026.09.16.tar.zst`. The Makefile copies these exact bytes to `dist/toolchain_x86_64_darwin.tar.zst` for upload; subsequent builds can download it from the release.
+The host toolchain is copied from the selected Xcode/Command Line Tools installation (`xcrun --find clang`).
 
 SDKs come from `/Library/Developer/CommandLineTools/SDKs/`.
 
-Utilities for both architectures are built with the selected native compiler and SDK 27.0, targeting macOS 14.0. The Intel toolchain's older linker cannot read SDK 27's `arm64e.x1` entries: native Intel users must select SDK 26.5 or an older compatible SDK. ARM-hosted Intel cross-builds using Xcode 27 can use SDK 27.
+Utilities for both architectures are built with the selected native compiler and SDK 27.0, targeting macOS 14.0.
 
 The build inputs can be overridden with `MACOS_BUILD_TOOLCHAIN`, `MACOS_BUILD_SDK`, `MACOS_DEPLOYMENT_TARGET`, and `MACOS_COMMAND_LINE_TOOLS_PATH`. `BUILD_JOBS` defaults to 4 jobs per utility build. Run `make clean` when changing these inputs or the installed toolchain/SDKs.
-
-Consumers in `packages/std/bootstrap.tg.ts` must select Darwin archives by the architecture **running** the compiler, add SDK 27.0 and the new archive checksums, and allow an explicit older SDK for the Intel toolchain. Package deployment targets are independent of bootstrap utilities; SDK 27 requires at least macOS 12.0, so the packages repo's current 11.0 default also needs adjustment.
 
 ## Usage
 
@@ -166,7 +162,7 @@ The locations and contents of `BUILDDIR` and `SOURCEDIR` are not meaningful or k
 ### Building
 
 - `all` - equivalent to running `make` with no target defined. Build each supported entrypoint for your host platform.
-- `all_darwin` - On macOS, build both Darwin architectures and all versioned SDKs.
+- `all_darwin` - On macOS, package the host toolchain, build utilities for both Darwin architectures, and copy all versioned SDKs.
 - `all_platforms` - On macOS, build both Darwin and both Linux architectures.
 - `check_darwin` - Build and validate both Darwin architectures.
 - `<component>` - Build a single component for your detected host platform.

@@ -91,11 +91,11 @@ endif
 # SDK is handled specially with per-version targets, not via this matrix.
 DASH_PLATFORMS := $(LINUX_PLATFORMS) $(MACOS_PLATFORMS)
 ENV_PLATFORMS := $(LINUX_PLATFORMS)
-TOOLCHAIN_PLATFORMS := $(LINUX_PLATFORMS) $(MACOS_PLATFORMS)
+TOOLCHAIN_PLATFORMS := $(sort $(LINUX_PLATFORMS) $(HOST_PLATFORM))
 UTILS_PLATFORMS := $(LINUX_PLATFORMS) $(MACOS_PLATFORMS)
 SANDBOX_PLATFORMS := $(LINUX_PLATFORMS)
 
-# macOS utilities use the selected native compiler, independently of the Intel archive.
+# macOS build inputs.
 ifeq ($(OS),Darwin)
 MACOS_COMMAND_LINE_TOOLS_PATH ?= /Library/Developer/CommandLineTools
 MACOS_BUILD_TOOLCHAIN ?= $(patsubst %/bin/clang,%,$(shell xcrun --find clang))
@@ -117,7 +117,7 @@ all: $(ALL_HOST_COMPONENTS)
 	@$(MAKE) --no-print-directory tarballs
 
 # Enumerate only supported completed components; stale universal bundles are excluded.
-ALL_PACKAGE_NAMES := $(foreach COMPONENT,$(COMMON_COMPONENTS),$(foreach PLATFORM,$(ALL_PLATFORMS),$(COMPONENT)_$(PLATFORM))) $(foreach COMPONENT,$(LINUX_COMPONENTS),$(foreach PLATFORM,$(LINUX_PLATFORMS),$(COMPONENT)_$(PLATFORM))) $(foreach VERSION,$(MACOS_SDK_VERSIONS),macos_sdk_$(VERSION))
+ALL_PACKAGE_NAMES := $(foreach COMPONENT,$(filter-out toolchain,$(COMMON_COMPONENTS)),$(foreach PLATFORM,$(ALL_PLATFORMS),$(COMPONENT)_$(PLATFORM))) $(addprefix toolchain_,$(TOOLCHAIN_PLATFORMS)) $(foreach COMPONENT,$(LINUX_COMPONENTS),$(foreach PLATFORM,$(LINUX_PLATFORMS),$(COMPONENT)_$(PLATFORM))) $(foreach VERSION,$(MACOS_SDK_VERSIONS),macos_sdk_$(VERSION))
 ALL_PACKAGES := $(foreach NAME,$(ALL_PACKAGE_NAMES),$(if $(wildcard $(DESTDIR)/$(NAME)/.stamp),$(DESTDIR)/$(NAME)))
 TARBALLS := $(addsuffix .tar.zst,$(ALL_PACKAGES))
 SHASUMS := $(DESTDIR)/SHASUMS256.txt
@@ -133,14 +133,14 @@ $(SHASUMS): $(TARBALLS) FORCE
 
 # On MacOS, additionally build all components for all other platforms.
 ifeq ($(OS),Darwin)
-ALL_PLATFORM_TARGETS := $(sort $(foreach TARGET,$(ALL_CROSS_COMPONENTS),$(foreach PLATFORM,$(LINUX_PLATFORMS),$(TARGET)_$(PLATFORM))) $(foreach TARGET,$(COMMON_COMPONENTS),$(foreach PLATFORM,$(filter-out $(HOST_PLATFORM),$(MACOS_PLATFORMS)),$(TARGET)_$(PLATFORM))))
+ALL_PLATFORM_TARGETS := $(sort $(foreach TARGET,$(ALL_CROSS_COMPONENTS),$(foreach PLATFORM,$(LINUX_PLATFORMS),$(TARGET)_$(PLATFORM))) $(foreach TARGET,$(filter-out toolchain,$(COMMON_COMPONENTS)),$(foreach PLATFORM,$(filter-out $(HOST_PLATFORM),$(MACOS_PLATFORMS)),$(TARGET)_$(PLATFORM))))
 
 .PHONY: all_darwin
-all_darwin: sdk $(foreach COMPONENT,$(COMMON_COMPONENTS),$(foreach PLATFORM,$(MACOS_PLATFORMS),$(COMPONENT)_$(PLATFORM)))
+all_darwin: sdk toolchain $(foreach COMPONENT,$(filter-out toolchain,$(COMMON_COMPONENTS)),$(foreach PLATFORM,$(MACOS_PLATFORMS),$(COMPONENT)_$(PLATFORM)))
 	@$(MAKE) --no-print-directory tarballs
 
 .PHONY: check_darwin
-check_darwin: sdk $(foreach COMPONENT,$(COMMON_COMPONENTS),$(foreach PLATFORM,$(MACOS_PLATFORMS),$(COMPONENT)_$(PLATFORM)))
+check_darwin: sdk toolchain $(foreach COMPONENT,$(filter-out toolchain,$(COMMON_COMPONENTS)),$(foreach PLATFORM,$(MACOS_PLATFORMS),$(COMPONENT)_$(PLATFORM)))
 	@$(check_darwin_bundles)
 
 .PHONY: all_platforms
@@ -595,24 +595,6 @@ $(SOURCEDIR)/busybox-$(BUSYBOX_VERSION).tar.bz2:
 ifeq ($(OS),Darwin)
 $(foreach PLATFORM,$(MACOS_PLATFORMS),$(BUILDDIR)/$(PLATFORM)/dash): Makefile
 
-# Frozen Intel toolchain, thinned once from bootstrap v2026.01.26.
-$(SOURCEDIR)/toolchain_darwin_v2026.09.16.tar.zst:
-	@$(call download,https://github.com/tangramdotdev/bootstrap/releases/download/v2026.09.16/toolchain_x86_64_darwin.tar.zst,$@)
-
-$(SOURCEDIR)/toolchain_darwin_v2026.09.16.tar.zst.stamp: $(SOURCEDIR)/toolchain_darwin_v2026.09.16.tar.zst
-	@$(call verify_sha256,$<,00c6d34df2bfa9fa9ca1daba8fd384f4635e404689ad932a6e481e48ccbcc275,$@)
-
-$(DESTDIR)/toolchain_x86_64_darwin/.stamp: $(SOURCEDIR)/toolchain_darwin_v2026.09.16.tar.zst.stamp | $(ENVIRONMENT)
-	@rm -rf $(@D)
-	@mkdir -p $(@D)
-	@tar -xf $(basename $<) -C $(@D)
-	@touch $@
-
-# Preserve the exact archive and checksum when including it in future releases.
-$(DESTDIR)/toolchain_x86_64_darwin.tar.zst: $(SOURCEDIR)/toolchain_darwin_v2026.09.16.tar.zst.stamp
-	@mkdir -p $(@D)
-	@cp $(basename $<) $@
-
 # SDK: each version is a separate, architecture-independent archive.
 .PHONY: sdk
 sdk: $(foreach VERSION,$(MACOS_SDK_VERSIONS),$(DESTDIR)/macos_sdk_$(VERSION)/.stamp)
@@ -647,7 +629,7 @@ endef
 
 $(foreach VERSION,$(MACOS_SDK_VERSIONS),$(eval $(call build_darwin_sdk_target,$(VERSION))))
 
-$(DESTDIR)/toolchain_aarch64_darwin/.stamp: Makefile | $(ENVIRONMENT)
+$(DESTDIR)/toolchain_$(HOST_PLATFORM)/.stamp: Makefile | $(ENVIRONMENT)
 	@rm -rf $(@D)
 	@mkdir -p $(@D)
 	@cp -R "$(MACOS_BUILD_TOOLCHAIN)/." $(@D)/
@@ -663,7 +645,7 @@ clean_toolchain_$(1)_all: clean_toolchain_$(1)
 clean_toolchain_$(1)_sources:
 	@:
 endef
-$(foreach PLATFORM,$(MACOS_PLATFORMS),$(eval $(call toolchain_darwin_clean_targets,$(PLATFORM))))
+$(eval $(call toolchain_darwin_clean_targets,$(HOST_PLATFORM)))
 endif
 
 ## macOS utils
@@ -867,6 +849,7 @@ set -e -o pipefail; \
 for ARCH in $(ALL_ARCHES); do \
     APPLE_ARCH=$$ARCH; [ "$$ARCH" != aarch64 ] || APPLE_ARCH=arm64; \
     for COMPONENT in dash utils toolchain; do \
+        [ "$$COMPONENT" != toolchain ] || [ "$$ARCH" = "$(ARCH)" ] || continue; \
         BIN="$(DESTDIR)/$${COMPONENT}_$${ARCH}_darwin/bin"; \
         case $$COMPONENT in dash) TOOLS="dash sh";; utils) TOOLS="toybox awk gawk expr grep tr";; toolchain) TOOLS="clang clang++ ld ar nm ranlib strip";; esac; \
         for TOOL in $$TOOLS; do test "$$(lipo -archs "$$BIN/$$TOOL")" = "$$APPLE_ARCH"; done; \
@@ -884,7 +867,7 @@ for LANGUAGE in c cpp; do \
     for ARCH in $(ALL_ARCHES); do \
         APPLE_ARCH=$$ARCH; [ "$$ARCH" != aarch64 ] || APPLE_ARCH=arm64; \
         $(DESTDIR)/toolchain_$(HOST_PLATFORM)/bin/$$COMPILER -target "$$APPLE_ARCH-apple-macos$(MACOS_DEPLOYMENT_TARGET)" \
-            -isysroot "$(abspath $(DESTDIR))/macos_sdk_$(if $(filter aarch64,$(ARCH)),27.0,26.5)" "$$WORK/main.$$LANGUAGE" -o "$$WORK/program"; \
+            -isysroot "$(MACOS_BUILD_SDK)" "$$WORK/main.$$LANGUAGE" -o "$$WORK/program"; \
         test "$$(lipo -archs "$$WORK/program")" = "$$APPLE_ARCH"; \
         if [ "$$ARCH" = "$(ARCH)" ]; then test "$$("$$WORK/program")" = ok; fi; \
     done; \

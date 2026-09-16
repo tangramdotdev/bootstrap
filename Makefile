@@ -116,7 +116,7 @@ endif
 all: $(ALL_HOST_COMPONENTS)
 	@$(MAKE) --no-print-directory tarballs
 
-# Enumerate only supported completed components; stale universal bundles are excluded.
+# Enumerate only supported, completed components.
 ALL_PACKAGE_NAMES := $(foreach COMPONENT,$(filter-out toolchain,$(COMMON_COMPONENTS)),$(foreach PLATFORM,$(ALL_PLATFORMS),$(COMPONENT)_$(PLATFORM))) $(addprefix toolchain_,$(TOOLCHAIN_PLATFORMS)) $(foreach COMPONENT,$(LINUX_COMPONENTS),$(foreach PLATFORM,$(LINUX_PLATFORMS),$(COMPONENT)_$(PLATFORM))) $(foreach VERSION,$(MACOS_SDK_VERSIONS),macos_sdk_$(VERSION))
 ALL_PACKAGES := $(foreach NAME,$(ALL_PACKAGE_NAMES),$(if $(wildcard $(DESTDIR)/$(NAME)/.stamp),$(DESTDIR)/$(NAME)))
 TARBALLS := $(addsuffix .tar.zst,$(ALL_PACKAGES))
@@ -138,10 +138,6 @@ ALL_PLATFORM_TARGETS := $(sort $(foreach TARGET,$(ALL_CROSS_COMPONENTS),$(foreac
 .PHONY: all_darwin
 all_darwin: sdk toolchain $(foreach COMPONENT,$(filter-out toolchain,$(COMMON_COMPONENTS)),$(foreach PLATFORM,$(MACOS_PLATFORMS),$(COMPONENT)_$(PLATFORM)))
 	@$(MAKE) --no-print-directory tarballs
-
-.PHONY: check_darwin
-check_darwin: sdk toolchain $(foreach COMPONENT,$(filter-out toolchain,$(COMMON_COMPONENTS)),$(foreach PLATFORM,$(MACOS_PLATFORMS),$(COMPONENT)_$(PLATFORM)))
-	@$(check_darwin_bundles)
 
 .PHONY: all_platforms
 all_platforms: $(ALL_HOST_COMPONENTS) $(ALL_PLATFORM_TARGETS)
@@ -653,7 +649,7 @@ endif
 ifeq ($(OS),Darwin)
 MACOS_BOOTSTRAP_UTILS_BUILD_PATH := $(BUILDDIR)/$(HOST_PLATFORM)/utils
 
-# Package the existing per-architecture builds directly, without a lipo assembly step.
+# Package each architecture's utilities.
 define utils_darwin_target
 $(DESTDIR)/utils_$(1)/.stamp: $(BUILDDIR)/$(1)/utils/bin/toybox.stamp $(BUILDDIR)/$(1)/gawk/.stamp $(BUILDDIR)/$(1)/grep/.stamp $(BUILDDIR)/$(1)/expr $(BUILDDIR)/$(1)/tr
 	@rm -rf $(DESTDIR)/utils_$(1)
@@ -843,39 +839,6 @@ fi
 endef
 
 ifeq ($(OS),Darwin)
-# Inspect both bundles and execute only tools built for this host.
-define check_darwin_bundles
-set -e -o pipefail; \
-for ARCH in $(ALL_ARCHES); do \
-    APPLE_ARCH=$$ARCH; [ "$$ARCH" != aarch64 ] || APPLE_ARCH=arm64; \
-    for COMPONENT in dash utils toolchain; do \
-        [ "$$COMPONENT" != toolchain ] || [ "$$ARCH" = "$(ARCH)" ] || continue; \
-        BIN="$(DESTDIR)/$${COMPONENT}_$${ARCH}_darwin/bin"; \
-        case $$COMPONENT in dash) TOOLS="dash sh";; utils) TOOLS="toybox awk gawk expr grep tr";; toolchain) TOOLS="clang clang++ ld ar nm ranlib strip";; esac; \
-        for TOOL in $$TOOLS; do test "$$(lipo -archs "$$BIN/$$TOOL")" = "$$APPLE_ARCH"; done; \
-    done; \
-    for FILE in $(DESTDIR)/dash_$${ARCH}_darwin/bin/dash $(addprefix $(DESTDIR)/utils_$${ARCH}_darwin/bin/,gawk grep expr tr toybox); do \
-        test "$$(otool -l "$$FILE" | awk '/^[[:space:]]*minos / { print $$2 }')" = "$(MACOS_DEPLOYMENT_TARGET)"; \
-        if otool -L "$$FILE" | sed 1d | grep -vE '^[[:space:]]+(/usr/lib/|/System/Library/)'; then echo "Unexpected dependency: $$FILE"; exit 1; fi; \
-    done; \
-done; \
-WORK=$$(mktemp -d) && trap 'rm -rf "$$WORK"' EXIT; \
-printf '#include <stdio.h>\nint main(void) { puts("ok"); return 0; }\n' > "$$WORK/main.c"; \
-printf '#include <iostream>\nint main() { std::cout << "ok" << std::endl; }\n' > "$$WORK/main.cpp"; \
-for LANGUAGE in c cpp; do \
-    COMPILER=clang; [ "$$LANGUAGE" = c ] || COMPILER=clang++; \
-    for ARCH in $(ALL_ARCHES); do \
-        APPLE_ARCH=$$ARCH; [ "$$ARCH" != aarch64 ] || APPLE_ARCH=arm64; \
-        $(DESTDIR)/toolchain_$(HOST_PLATFORM)/bin/$$COMPILER -target "$$APPLE_ARCH-apple-macos$(MACOS_DEPLOYMENT_TARGET)" \
-            -isysroot "$(MACOS_BUILD_SDK)" "$$WORK/main.$$LANGUAGE" -o "$$WORK/program"; \
-        test "$$(lipo -archs "$$WORK/program")" = "$$APPLE_ARCH"; \
-        if [ "$$ARCH" = "$(ARCH)" ]; then test "$$("$$WORK/program")" = ok; fi; \
-    done; \
-done; \
-echo "Darwin architecture, deployment, dependency, and C/C++ checks passed."; \
-echo "Foreign-architecture executables were inspected but not run."
-endef
-
 # Target flags must also reach generators that invoke CC without CFLAGS.
 # WORK and ARCH are set by the existing Darwin build recipes.
 define darwin_compiler

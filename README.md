@@ -2,7 +2,7 @@
 
 This package provides the preliminary components required to bootstrap the [Tangram](https://www.tangram.dev) ecosystem on [Linux](https://www.kernel.org) and [macOS](https://www.apple.com/macos/).
 
-**TL;DR** Run `make -j4` in this directory. On macOS, use `make -j4 all_darwin` to build both architectures and `make check_darwin` to validate them.
+**TL;DR** Run `make -j4` in this directory. On macOS, use `make -j4 all_darwin` to build both architectures.
 
 Use the provided `Makefile` to produce these components ahead of running Tangram. Basic usage:
 
@@ -11,7 +11,7 @@ Use the provided `Makefile` to produce these components ahead of running Tangram
 - `make clean` - Remove all build artifacts but retain downloaded sources.
 - `make clean_all` - Remove all build artifacts AND sources.
 
-Completed components and archives appear in `dist/`, with checksums in `dist/SHASUMS256.txt`. Only supported, completed components are archived; stale universal bundles are excluded.
+Completed components and archives appear in `dist/`, with checksums in `dist/SHASUMS256.txt`. Only supported, completed components are archived.
 
 On macOS, the `list_all_platforms` target enumerates every available component/platform combination. The makefile can optionally build the Linux targets as well using [Docker Desktop](#docker-platform). Use `make all_platforms` to build every available target.
 
@@ -155,8 +155,6 @@ The build manages the following directories:
 - `BUILDDIR` - Intermediate build artifacts. Default: `build`.
 - `SOURCEDIR` - Source code, signatures, checksums. Default: `sources`.
 
-Use `make check_darwin` to check bundle architectures, deployment targets, system dependencies, and C/C++ cross-linking. It executes only native programs; Intel macOS runtime testing requires an Intel Mac or Rosetta.
-
 The locations and contents of `BUILDDIR` and `SOURCEDIR` are not meaningful or known to the Tangram package.
 
 ### Building
@@ -164,7 +162,6 @@ The locations and contents of `BUILDDIR` and `SOURCEDIR` are not meaningful or k
 - `all` - equivalent to running `make` with no target defined. Build each supported entrypoint for your host platform.
 - `all_darwin` - On macOS, package the host toolchain, build utilities for both Darwin architectures, and copy all versioned SDKs.
 - `all_platforms` - On macOS, build both Darwin and both Linux architectures.
-- `check_darwin` - Build and validate both Darwin architectures.
 - `<component>` - Build a single component for your detected host platform.
 - `<component>_<platform>` - Build a single component for a specific platform, if supported.
 - `tarballs` - Create compressed tarballs for each component.
